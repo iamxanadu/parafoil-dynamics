@@ -1,6 +1,8 @@
 from math import sin, cos
 from constants import taue, taus
 from constants import Cltrim, Cdtrim, delCl, delCd
+from constants import rho, S, m, g
+
 
 def f(x, u):
     """Dynamics of a parafoil as a rigid body as described in Rademacher (2009)
@@ -19,6 +21,8 @@ def f(x, u):
     L = 1/2 * rho * V**2 * S * Cl
     Cd = Cdtrim + delCd * epsilon
     D = 1/2 * rho * V**2 * S * Cd
+
+    W = m * g
 
     dotV = -(D + W * sin(gamma)) / m
     dotgamma = (L * cos(sigma) - W * cos(gamma)) / (m * V)

@@ -1,6 +1,7 @@
 rho = 1.225  # kg/m^3
 S = 2  # m^2
 m = 2.5  # kg
+g = 9.81 # m/s/s
 
 # Rademacher (2009)
 taus = 1.0
