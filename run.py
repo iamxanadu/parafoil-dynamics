@@ -24,7 +24,3 @@ t = np.linspace(0, 100, 1000)
 # Call odeint
 solution = odeint(odeint_wrapper, x0, t)
 
-print(solution)
-
-plt.plot(t, solution[:,5])
-plt.show()
