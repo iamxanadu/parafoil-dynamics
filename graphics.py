@@ -71,12 +71,24 @@ class Visualizer(object):
             parafoil_width = 0.3 / 2
             parafoil_depth = 0.15 / 2
 
-            # TODO: modify xs, ys, and hs depending on gamma, psi, and sigma(?)
-            gm = gamma[i]
-            ps = psi[i]
-            xs = [x - parafoil_width, x + parafoil_width, x + parafoil_width, x - parafoil_width]
-            ys = [y - parafoil_depth, y - parafoil_depth, y + parafoil_depth, y + parafoil_depth]
-            hs = [height, height, height, height]
+            # modifies xs, ys, and hs depending on gamma, psi, and sigma(?)
+            beta = gamma[i]
+            alpha = psi[i] + (np.pi/2)
+            points = np.array([
+                [-parafoil_depth, -parafoil_width, 0],
+                [-parafoil_depth, parafoil_width, 0],
+                [parafoil_depth, parafoil_width, 0],
+                [parafoil_depth, -parafoil_width, 0],
+            ]).transpose()
+            transformation_matrix = np.array([
+                [np.cos(alpha)*np.cos(beta), -np.sin(alpha), np.cos(alpha)*np.sin(beta)],
+                [np.sin(alpha)*np.cos(beta), np.cos(alpha), np.sin(alpha)*np.sin(beta)],
+                [-np.sin(beta), 0, np.cos(beta)],
+            ])
+            new_offsets = transformation_matrix.dot(points)
+            xs = new_offsets[0, :] + x
+            ys = new_offsets[1, :] + y
+            hs = new_offsets[2, :] + height
 
             verts = [list(zip(xs, ys, hs))]
             collection = Poly3DCollection(verts, linewidths=1, edgecolors='red', alpha=0.2, zsort='min')
@@ -95,7 +107,8 @@ class Visualizer(object):
 if __name__ == "__main__":
 
     test_x_traj = np.zeros((10, 30))
-    test_x_traj[4] = -np.arange(30) * np.pi * 2.0 / 2.05
+    test_x_traj[3] = (1.0 - np.arange(30) / 29.0) * 0.5
+    test_x_traj[4] = np.arange(30) * np.pi * 4.5 / 29.0
     test_x_traj[5] = np.cos(np.arange(30) / 2.0)
     test_x_traj[6] = np.sin(np.arange(30) / 2.1)
     test_x_traj[7] = 1.0 - (np.arange(30) / 29.0)
