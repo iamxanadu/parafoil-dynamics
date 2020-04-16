@@ -30,14 +30,14 @@ class Visualizer(object):
     # converts state trajectory into separate time-indexed state variables
     def process_state(self, x_traj):
         time = np.arange(x_traj.shape[-1])
-        V = x_traj[0:3, :]
-        gamma = x_traj[3, :]
-        psi = x_traj[4, :]
-        x_pos = x_traj[5, :]
-        y_pos = x_traj[6, :]
-        h = x_traj[7, :]
-        sigma = x_traj[8, :]
-        eta = x_traj[9, :]
+        V = x_traj[0, :]
+        gamma = x_traj[1, :]
+        psi = x_traj[2, :]
+        x_pos = x_traj[3, :]
+        y_pos = x_traj[4, :]
+        h = x_traj[5, :]
+        sigma = x_traj[6, :]
+        eta = x_traj[7, :]
         return (time, V, gamma, psi, x_pos, y_pos, h, sigma, eta)
 
     ### public methods ###
@@ -46,30 +46,26 @@ class Visualizer(object):
     def plot_state_trajectory(self, x_traj):
         time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(x_traj)
 
-        fig = plt.figure()
-        ax = plt.axes(projection='3d')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Z')
-        ax.set_zlabel('Y')
-        ax.plot3D(x_pos, y_pos, h, 'blue')
-        ax.scatter(x_pos, y_pos, h, marker='o')
+        fig = plt.figure(figsize=plt.figaspect(1.5))
+        fig.suptitle('State Trajectory')
+
+        ax0 = fig.add_subplot(2, 1, 1, projection='3d')
+        ax0.set_xlabel('X')
+        ax0.set_ylabel('Z')
+        ax0.set_zlabel('Y')
+        ax0.plot3D(x_pos, y_pos, h, 'blue')
+        ax0.scatter(x_pos, y_pos, h, marker='o')
 
         # plots vectors
+        parafoil_scale = ((np.amax(x_pos) - np.amin(x_pos)) + (np.amax(y_pos) - np.amin(y_pos))) / 4
         for i in range(V.shape[-1]):
 
-            # plots v
-            v = V[:, i]
+            # plots simple parafoil
+            parafoil_width = 0.3 * 0.5 * parafoil_scale
+            parafoil_depth = 0.15 * 0.5 * parafoil_scale
             x = x_pos[i]
             y = y_pos[i]
             height = h[i]
-            a = Arrow3D([x, x + v[0]], [y, y + v[1]], 
-                [height, height + v[2]], mutation_scale=10, 
-                lw=2, arrowstyle="-|>", color="r")
-            ax.add_artist(a)
-
-            # plots simple parafoil
-            parafoil_width = 0.3 / 2
-            parafoil_depth = 0.15 / 2
 
             # modifies xs, ys, and hs depending on gamma, psi, and sigma(?)
             beta = gamma[i]
@@ -79,6 +75,9 @@ class Visualizer(object):
                 [-parafoil_depth, parafoil_width, 0],
                 [parafoil_depth, parafoil_width, 0],
                 [parafoil_depth, -parafoil_width, 0],
+            ]).transpose()
+            heading = np.array([
+                [1.0, 0.0, 0.0],
             ]).transpose()
             transformation_matrix = np.array([
                 [np.cos(alpha)*np.cos(beta), -np.sin(alpha), np.cos(alpha)*np.sin(beta)],
@@ -94,7 +93,21 @@ class Visualizer(object):
             collection = Poly3DCollection(verts, linewidths=1, edgecolors='red', alpha=0.2, zsort='min')
             face_color = "salmon"
             collection.set_facecolor(face_color)
-            ax.add_collection3d(collection)
+            ax0.add_collection3d(collection)
+
+            # plots v
+            v = V[i]
+            new_heading = transformation_matrix.dot(heading)
+            a = Arrow3D([x, x + new_heading[0, 0] * v], [y, y + new_heading[1, 0] * v], 
+                [height, height + new_heading[2, 0] * v], mutation_scale=10, 
+                lw=2, arrowstyle="-|>", color="r")
+            ax0.add_artist(a)
+
+        # plots sigma and eta
+        ax1 = fig.add_subplot(2, 1, 2)
+        ax1.plot(time, sigma, 'tab:orange')
+        ax1.plot(time, eta, 'tab:green')
+        ax1.legend(['Sigma', 'Eta'])
 
         plt.show()
 
@@ -107,12 +120,12 @@ class Visualizer(object):
 if __name__ == "__main__":
 
     test_x_traj = np.zeros((10, 30))
-    test_x_traj[3] = (1.0 - np.arange(30) / 29.0) * 0.5
-    test_x_traj[4] = np.arange(30) * np.pi * 4.5 / 29.0
-    test_x_traj[5] = np.cos(np.arange(30) / 2.0)
-    test_x_traj[6] = np.sin(np.arange(30) / 2.1)
-    test_x_traj[7] = 1.0 - (np.arange(30) / 29.0)
-    test_x_traj[0] = -np.sin(np.arange(30) / 2.0) / 4.0
-    test_x_traj[1] = np.cos(np.arange(30) / 2.1) / 4.0
-    test_x_traj[2] = -1.0 / 10.0
+    test_x_traj[0] = (np.sin(np.arange(30) / 1.6) * 0.15) + 0.2
+    test_x_traj[1] = (1.0 - np.arange(30) / 29.0) * 0.5
+    test_x_traj[2] = np.arange(30) * np.pi * 4.5 / 29.0
+    test_x_traj[3] = np.cos(np.arange(30) / 2.0)
+    test_x_traj[4] = np.sin(np.arange(30) / 2.1)
+    test_x_traj[5] = 1.0 - (np.arange(30) / 29.0)
+    test_x_traj[6] = np.sin(np.arange(30) / 4.0)
+    test_x_traj[7] = np.cos(np.arange(30) / 4.0)
     visualizer = Visualizer(x_traj=test_x_traj)
