@@ -51,8 +51,8 @@ class Visualizer(object):
 
         ax0 = fig.add_subplot(2, 1, 1, projection='3d')
         ax0.set_xlabel('X')
-        ax0.set_ylabel('Z')
-        ax0.set_zlabel('Y')
+        ax0.set_ylabel('Y')
+        ax0.set_zlabel('Altitude')
         ax0.plot3D(x_pos, y_pos, h, 'blue')
         ax0.scatter(x_pos, y_pos, h, marker='o')
 
