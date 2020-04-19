@@ -27,5 +27,4 @@ solution = odeint(odeint_wrapper, x0, t)
 
 # Graphs solution
 solution = np.transpose(solution)
-solution = np.insert(solution, 0, np.zeros((2, solution.shape[-1])), axis=0) # TODO: remove when V is handled as vector and not scalar
 visualizer = Visualizer(x_traj=np.transpose(solution))
