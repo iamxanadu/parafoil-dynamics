@@ -1,4 +1,4 @@
-from dynamics import f
+from dynamics import simulation_dynamics
 from controllers import constant_controller
 from scipy.integrate import odeint
 from math import pi
@@ -8,12 +8,11 @@ from matplotlib import pyplot as plt
 
 from graphics import *
 
-
 def odeint_wrapper(x, t):
     # Calculate control
     u = constant_controller(x)
     # Return just xdot
-    return f(x, u)
+    return simulation_dynamics(x, u)
 
 
 # Initial state
