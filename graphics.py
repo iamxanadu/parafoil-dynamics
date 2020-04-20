@@ -119,7 +119,7 @@ class Visualizer(object):
 # unit tests when running graphics.py directly
 if __name__ == "__main__":
 
-    test_x_traj = np.zeros((10, 30))
+    test_x_traj = np.zeros((8, 30))
     test_x_traj[0] = (np.sin(np.arange(30) / 1.6) * 0.15) + 0.2
     test_x_traj[1] = (1.0 - np.arange(30) / 29.0) * 0.5
     test_x_traj[2] = np.arange(30) * np.pi * 4.5 / 29.0
