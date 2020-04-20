@@ -69,12 +69,12 @@ V_candidate_dot = V_candidate_dot.subs(Derivative(sigma, t), dotsigma)
 
 
 # x_in = [v, gamma, psi, x, y, h, sigma, epsilon]
-x_current = np.array([0.5, 0.0, 0.0, 1.0, 1.0, 2.0, 0.0, 0.0])
+x_current = np.array([0.5, 0.0, 0.0, -1.0, 0.5, 6.0, 0.0, 0.0])
 u_last = np.array([0.0, 0.0])
 u_current = np.array([0.0, 0.0])
 t_current = 0.0
-t_delta = 0.01
-n = 30
+t_delta = 0.0115
+n = 100
 
 test_x_traj = np.zeros((8, n+1))
 test_x_traj[:, 0] = np.array(x_current)
@@ -145,7 +145,7 @@ for i in range(n):
         u_current[1] = re(comepsilon_fin)
 
     # bounds u
-    u_current = np.clip(u_current, -10.0, 10.0)
+    u_current = np.clip(u_current, -3.0, 3.0)
 
     # executes dynamics and computes new state
     x_current = discrete_simulation_dynamics(x_current, u_current, t_delta)
