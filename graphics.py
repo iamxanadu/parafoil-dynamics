@@ -19,7 +19,8 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Visualizer(object):
-    def __init__(self, x_traj=None, lyapunov_function=None):
+    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True):
+        self.plot_heading = plot_heading
         if x_traj is not None:
             self.plot_state_trajectory(x_traj)
         elif lyapunov_function is not None:
@@ -96,12 +97,13 @@ class Visualizer(object):
             ax0.add_collection3d(collection)
 
             # plots v
-            v = V[i]
-            new_heading = transformation_matrix.dot(heading)
-            a = Arrow3D([x, x + new_heading[0, 0] * v], [y, y + new_heading[1, 0] * v], 
-                [height, height + new_heading[2, 0] * v], mutation_scale=10, 
-                lw=2, arrowstyle="-|>", color="r")
-            ax0.add_artist(a)
+            if self.plot_heading:
+                v = V[i]
+                new_heading = transformation_matrix.dot(heading)
+                a = Arrow3D([x, x + new_heading[0, 0] * v], [y, y + new_heading[1, 0] * v], 
+                    [height, height + new_heading[2, 0] * v], mutation_scale=10, 
+                    lw=2, arrowstyle="-|>", color="r")
+                ax0.add_artist(a)
 
         # plots sigma and eta
         ax1 = fig.add_subplot(2, 1, 2)
