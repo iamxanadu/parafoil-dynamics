@@ -3,10 +3,13 @@ import numpy as np
 
 class ILQRPlanner():
 
-    def __init__(self, nx, nu, f, l, lf, lx, lu, lxx, lux, luu, fx, fu, dt):
+    def __init__(self, nx, nu, f, lf, lfx, lfxx, l, lx, lu, lxx, lux, luu, fx, fu, dt):
         self.f = f
         self.l = l
+
         self.lf = lf
+        self.lfx = lfx
+        self.lfxx = lfxx
 
         self.lx = lx
         self.lu = lu
@@ -22,10 +25,11 @@ class ILQRPlanner():
         self.nu = nu
 
     def _discrete_dynamics(self, x, u, dt):
-        return self.f(x, u) * dt + x
+        r = self.f(x, u)
+        return r * dt + x
 
     def _ilqr_rollout(self, x0, u_trj):
-        x_trj = np.zeros((u_trj.shape[0]+1, x0.shape[0]))
+        x_trj = np.zeros((u_trj.shape[0]+1, self.nx, 1))
         x_trj[0] = x0
         for i in range(u_trj.shape[0]):
             x_trj[i+1] = self._discrete_dynamics(x_trj[i], u_trj[i], self.dt)
@@ -50,14 +54,12 @@ class ILQRPlanner():
         return x_trj_new, u_trj_new
 
     def _ilqr_backward_pass(self, x_trj, u_trj, regu):
-        k_trj = np.zeros([u_trj.shape[0], u_trj.shape[1]])
-        K_trj = np.zeros([u_trj.shape[0], u_trj.shape[1], x_trj.shape[1]])
+        k_trj = np.zeros(u_trj.shape)
+        K_trj = np.zeros((u_trj.shape[0], u_trj.shape[1], x_trj.shape[1]))
         expected_cost_redu = 0
-        # TODO: Set terminal boundary condition here (V_x, V_xx)
-        V_x = np.zeros((x_trj.shape[1],))
-        V_xx = np.zeros((x_trj.shape[1], x_trj.shape[1]))
+        V_x = self.lfx(x_trj[-1])
+        V_xx = self.lfxx(x_trj[-1])
         for n in range(u_trj.shape[0]-1, -1, -1):
-            # TODO: First compute derivatives, then the Q-terms
             l_x, l_u, l_xx, l_ux, l_uu, f_x, f_u = self._get_derivatives_ilqr(
                 x_trj[n], u_trj[n])
             Q_x, Q_u, Q_xx, Q_ux, Q_uu = self._ilqr_Q_terms(
@@ -72,7 +74,7 @@ class ILQRPlanner():
                 Q_u, Q_uu, k)
         return k_trj, K_trj, expected_cost_redu
 
-    def _ilqr_Q_terms(l_x, l_u, l_xx, l_ux, l_uu, f_x, f_u, V_x, V_xx):
+    def _ilqr_Q_terms(self, l_x, l_u, l_xx, l_ux, l_uu, f_x, f_u, V_x, V_xx):
         Q_x = l_x + f_x.T.dot(V_x)
         Q_u = l_u + f_u.T.dot(V_x)
         Q_xx = l_xx + f_x.T.dot(V_xx).dot(f_x)
@@ -80,12 +82,12 @@ class ILQRPlanner():
         Q_uu = l_uu + f_u.T.dot(V_xx).dot(f_u)
         return Q_x, Q_u, Q_xx, Q_ux, Q_uu
 
-    def _ilqr_V_terms(Q_x, Q_u, Q_xx, Q_ux, Q_uu, K, k):
+    def _ilqr_V_terms(self, Q_x, Q_u, Q_xx, Q_ux, Q_uu, K, k):
         V_x = Q_x - K.T.dot(Q_uu).dot(k)
         V_xx = Q_xx - K.T.dot(Q_uu).dot(K)
         return V_x, V_xx
 
-    def _ilqr_gains(Q_uu, Q_u, Q_ux):
+    def _ilqr_gains(self, Q_uu, Q_u, Q_ux):
         Q_uu_inv = np.linalg.inv(Q_uu)
         k = -Q_uu_inv.dot(Q_u)
         K = -Q_uu_inv.dot(Q_ux)
@@ -107,7 +109,7 @@ class ILQRPlanner():
 
     def plan_ilqr_trajectory(self, x0, N, max_iter=50, regu_init=100):
         # First forward rollout
-        u_trj = np.random.randn(N-1, self.nu)*0.0001
+        u_trj = np.random.randn(N-1, self.nu, 1)*0.0001
         x_trj = self._ilqr_rollout(x0, u_trj)
         total_cost = self._ilqr_cost_trj(x_trj, u_trj)
         regu = regu_init
@@ -161,7 +163,11 @@ if __name__ == "__main__":
     from sympy import pprint, init_printing
     from sympy import simplify, lambdify
 
+    from math import pi
+
     import constants
+
+    from graphics import Visualizer
 
     init_printing()
 
@@ -201,38 +207,68 @@ if __name__ == "__main__":
     hdot = v*sin(gamma)
 
     # Calculate the derivatives
-    xs = Matrix([v, gamma, psi, x, y, h])
-    u = Matrix([sigma, epsilon])
+    xsl = [v, gamma, psi, x, y, h]
+    ul = [sigma, epsilon]
+    xs = Matrix(xsl)
+    u = Matrix(ul)
     f = Matrix([vdot, gammadot, psidot, xdot, ydot, hdot])
 
-    fd = lambdify((xs.tolist(), u.tolist()),
-                  f.subs(const_dict), modules='numpy')
-    fx = lambdify((xs.tolist(), u.tolist()), f.jacobian(
+    lamfd = lambdify([xsl, ul],
+                     f.subs(const_dict), modules='numpy')
+    lamfx = lambdify([xsl, ul], f.jacobian(
         xs).subs(const_dict), modules='numpy')
-    fu = lambdify((xs.tolist(), u.tolist()), f.jacobian(
+    lamfu = lambdify([xsl, ul], f.jacobian(
         u).subs(const_dict), modules='numpy')
 
-    x0 = np.array([[2, -pi/6, 0, 0, 0, 100, 0, 0]])
+    def fd(x, u):
+        return lamfd(x.T[0], u.T[0])
+
+    def fx(x, u):
+        return lamfx(x.T[0], u.T[0])
+
+    def fu(x, u):
+        return lamfu(x.T[0], u.T[0])
+
+    x0 = np.array([[2, -pi/6, 0, 300, 200, 100]]).T
+    #u = np.array([0, 0])
 
     xr = np.array([[5, 0, -0.5, 0, 0, 0]]).T
     Q = np.diag([1, 1, 1, 10, 10, 10])
     R = np.diag([1, 2])
     Qf = np.diag([0.1, 0.1, 0.1, 10, 10, 10])
 
-    def ls(x, u): return (x.T - xr.T).dot(Q).dot(x.T - xr.T) + u.T.dot(R).dot(u)
+    def ls(x, u):
+        return (x.T - xr.T).dot(Q).dot(x - xr) + u.T.dot(R).dot(u)
 
-    def lf(x, U): return (x.T - xr.T).dot(Qf).dot(x.T - xr.T)
+    def lf(x):
+        return (x.T - xr.T).dot(Qf).dot(x - xr)
 
-    def lx(x, u): return Q.dot(x - xr) + Q.T.dot(x - xr)
+    def lfx(x):
+        return Qf.dot(x - xr) + Qf.T.dot(x - xr)
 
-    def lu(x, u): return R.dot(u) + R.T.dot(u)
+    def lfxx(x):
+        return Qf + Qf.T
 
-    def lux(x, u): return np.zeros((u.shape[0], x.shape[1]))
+    def lx(x, u):
+        return Q.dot(x - xr) + Q.T.dot(x - xr)
 
-    def lxx(x, u): return Q + Q.T
+    def lu(x, u):
+        return R.dot(u) + R.T.dot(u)
 
-    def luu(x, u): return R + R.T
+    def lux(x, u):
+        return np.zeros((u.shape[0], x.shape[0]))
 
-    ilqrp = ILQRPlanner(6, 2, f, ls, lf, lx, lu, lxx, lux, luu, fx, fu, 0.1)
+    def lxx(x, u):
+        return Q + Q.T
 
-    ilqrp.plan_ilqr_trajectory(x0, 1000)
+    def luu(x, u):
+        return R + R.T
+
+    ilqrp = ILQRPlanner(6, 2, fd, lf, lfx, lfxx, ls, lx,
+                        lu, lxx, lux, luu, fx, fu, 0.1)
+
+    x_trj, u_trj, cost_trace, regu_trace, redu_ratio_trace, redu_trace = ilqrp.plan_ilqr_trajectory(x0, 100)
+    u_trj = np.concatenate((u_trj, np.zeros((1, 2, 1))), axis=0)
+    full_trj = np.concatenate((x_trj, u_trj), axis=1)
+
+    viz = Visualizer(x_traj=np.transpose(np.squeeze(full_trj)))
