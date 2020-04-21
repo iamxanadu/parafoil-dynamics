@@ -1,5 +1,5 @@
 from dynamics import simulation_dynamics
-from controllers import constant_controller
+from controllers import *
 from scipy.integrate import odeint
 from math import pi
 
@@ -10,7 +10,7 @@ from graphics import *
 
 def odeint_wrapper(x, t):
     # Calculate control
-    u = constant_controller(x)
+    u = minimum_time_controller(x, 10.0, -10.0)
     # Return just xdot
     return simulation_dynamics(x, u)
 

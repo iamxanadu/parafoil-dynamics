@@ -1,10 +1,12 @@
 from math import sin, cos
+import sympy
+import numpy as np
 from constants import taue, taus
 from constants import Cltrim, Cdtrim, delCl, delCd
 from constants import rho, S, m, g
 
 
-def simulation_dynamics(x, u):
+def simulation_dynamics(x, u, sympy_version=False):
     """Dynamics of a parafoil as a rigid body as described in Rademacher (2009)
 
     Args:
@@ -24,16 +26,33 @@ def simulation_dynamics(x, u):
 
     W = m * g
 
-    dotV = -(D + W * sin(gamma)) / m
-    dotgamma = (L * cos(sigma) - W * cos(gamma)) / (m * V)
-    dotpsi = (L * sin(sigma)) / (m * V * cos(gamma))
-    dotx = V * cos(gamma) * cos(psi) + wx
-    doty = V * cos(gamma) * sin(psi) + wy
-    doth = V * sin(gamma)
-    dotsigma = (comsigma - sigma)/taus
-    dotepsilon = (comepsilon - epsilon)/taue
+    if sympy_version:
+        dotV = -(D + W * sympy.sin(gamma)) / m
+        dotgamma = (L * sympy.cos(sigma) - W * sympy.cos(gamma)) / (m * V)
+        dotpsi = (L * sympy.sin(sigma)) / (m * V * sympy.cos(gamma))
+        dotx = V * sympy.cos(gamma) * sympy.cos(psi) + wx
+        doty = V * sympy.cos(gamma) * sympy.sin(psi) + wy
+        doth = V * sympy.sin(gamma)
+        dotsigma = (comsigma - sigma)/taus
+        dotepsilon = (comepsilon - epsilon)/taue
+    else:
+        dotV = -(D + W * sin(gamma)) / m
+        dotgamma = (L * cos(sigma) - W * cos(gamma)) / (m * V)
+        dotpsi = (L * sin(sigma)) / (m * V * cos(gamma))
+        dotx = V * cos(gamma) * cos(psi) + wx
+        doty = V * cos(gamma) * sin(psi) + wy
+        doth = V * sin(gamma)
+        dotsigma = (comsigma - sigma)/taus
+        dotepsilon = (comepsilon - epsilon)/taue
+
+        return np.array([dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]).astype(float)
 
     return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]
+
+
+def discrete_simulation_dynamics(x, u, dt):
+    xdot = simulation_dynamics(x, u, sympy_version=False)
+    return (dt * xdot) + x
 
 
 def dynamics(x, u):
