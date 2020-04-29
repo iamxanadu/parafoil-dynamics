@@ -44,7 +44,7 @@ def simulation_dynamics(x, u, sympy_version=False):
         doth = V * sin(gamma)
         dotsigma = (comsigma - sigma)/taus
         dotepsilon = (comepsilon - epsilon)/taue
-
+        print(dotpsi)
         return np.array([dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]).astype(float)
 
     return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]

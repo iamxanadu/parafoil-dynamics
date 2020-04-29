@@ -58,6 +58,7 @@ class Visualizer(object):
         ax0.scatter(x_pos, y_pos, h, marker='o')
 
         # plots vectors
+        '''
         parafoil_scale = ((np.amax(x_pos) - np.amin(x_pos)) + (np.amax(y_pos) - np.amin(y_pos))) / 4
         for i in range(V.shape[-1]):
 
@@ -104,7 +105,8 @@ class Visualizer(object):
                     [height, height + new_heading[2, 0] * v], mutation_scale=10, 
                     lw=2, arrowstyle="-|>", color="r")
                 ax0.add_artist(a)
-
+        '''
+        
         # plots sigma and eta
         ax1 = fig.add_subplot(2, 1, 2)
         ax1.plot(time, sigma, 'tab:orange')

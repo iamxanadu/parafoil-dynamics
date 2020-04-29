@@ -7,7 +7,7 @@ def constant_controller(x):
     Returns:
         list -- list of zeros for the control.
     """
-    return [0, 0]
+    return [0.1, 0.1]
 
 
 def minimum_time_controller(x, a, b):
