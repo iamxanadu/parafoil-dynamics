@@ -82,7 +82,7 @@ u_current = np.array([0.0, 0.0])
 t_current = 0.0
 t_delta = 0.011
 n = 220
-K = 7.0
+K = 60.0
 
 test_x_traj = np.zeros((8, n+1))
 test_x_traj[:, 0] = np.array(x_current)
@@ -141,7 +141,7 @@ for i in range(n):
         print(" * Current V: "+str(V_current))
 
     # bounds u
-    u_current[0] = np.clip(u_current[0], -np.pi/1.9, np.pi/1.9)
+    u_current[0] = np.clip(u_current[0], -np.pi/1.0, np.pi/1.0)
     u_current[1] = np.clip(u_current[1], -100.0, 100.0)
 
     # executes dynamics and computes new state
