@@ -19,8 +19,9 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Visualizer(object):
-    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True):
+    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None):
         self.plot_heading = plot_heading
+        self.goal_pos = goal_pos
         if x_traj is not None:
             self.plot_state_trajectory(x_traj)
         elif lyapunov_function is not None:
@@ -56,6 +57,19 @@ class Visualizer(object):
         ax0.set_zlabel('Altitude')
         ax0.plot3D(x_pos, y_pos, h, 'blue')
         ax0.scatter(x_pos, y_pos, h, marker='o')
+
+        # marks points near goal state
+        if self.goal_pos is not None:
+            diffs = np.zeros((3, V.shape[-1]))
+            diffs[0, :] = x_pos.astype(float)
+            diffs[1, :] = y_pos.astype(float)
+            diffs[2, :] = h.astype(float)
+            goals = np.repeat(self.goal_pos, V.shape[-1], axis=1).astype(float)
+            dist = np.sum(np.abs(diffs - goals) ** 2.0, axis=0) ** (1./2.)
+            
+            best_step = np.argmin(dist)
+            ax0.scatter(x_pos[best_step], y_pos[best_step], h[best_step], c='g', s=200)
+            ax0.scatter(float(self.goal_pos[0]), float(self.goal_pos[1]), float(self.goal_pos[2]), c='orange', s=140)
 
         # plots vectors
         parafoil_scale = ((np.amax(x_pos) - np.amin(x_pos)) + (np.amax(y_pos) - np.amin(y_pos))) / 4
