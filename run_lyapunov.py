@@ -35,7 +35,7 @@ dotv, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon = simulation_dyna
 # q = Matrix(x_in)
 # q_dest = Matrix([0, 0, 0, 0, 0, 0, 0, 0])
 q = Matrix([x, y, h])
-q_dest = Matrix([0.5, 0.5, 0.0])
+q_dest = Matrix([1.0, 0.5, 0.0])
 e = (q_dest - q)
 edot = Derivative(e, t).doit()
 alpha = Symbol('alpha')
@@ -80,7 +80,7 @@ x_current = np.array([0.1, 0.0, 0.0, 0.0, 0.0, 3.5, 0.0, 0.0]) # starts with x_0
 u_last = np.array([0.0, 0.0]) # tracks previous controls state, used to calculate deriv(u)
 u_current = np.array([0.0, 0.0])
 t_current = 0.0
-t_delta = 0.01
+t_delta = 0.011
 n = 220
 K = 7.0
 
