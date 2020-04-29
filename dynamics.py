@@ -33,8 +33,8 @@ def simulation_dynamics(x, u, sympy_version=False):
         dotx = V * sympy.cos(gamma) * sympy.cos(psi) + wx
         doty = V * sympy.cos(gamma) * sympy.sin(psi) + wy
         doth = V * sympy.sin(gamma)
-        dotsigma = (comsigma - sigma)/taus
-        dotepsilon = (comepsilon - epsilon)/taue
+        dotsigma = (comsigma - sigma)*6.0/taus
+        dotepsilon = (comepsilon - epsilon)*6.0/taue
     else:
         dotV = -(D + W * sin(gamma)) / m
         dotgamma = (L * cos(sigma) - W * cos(gamma)) / (m * V)
@@ -42,9 +42,8 @@ def simulation_dynamics(x, u, sympy_version=False):
         dotx = V * cos(gamma) * cos(psi) + wx
         doty = V * cos(gamma) * sin(psi) + wy
         doth = V * sin(gamma)
-        dotsigma = (comsigma - sigma)/taus
-        dotepsilon = (comepsilon - epsilon)/taue
-        print(dotpsi)
+        dotsigma = (comsigma - sigma)*6.0/taus
+        dotepsilon = (comepsilon - epsilon)*6.0/taue
         return np.array([dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]).astype(float)
 
     return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]
