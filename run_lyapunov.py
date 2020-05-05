@@ -26,17 +26,20 @@ comepsilon = Function('comepsilon')(t)
 
 ### extracts derivatives from simulation dynamics
 
+wx = sin(h) * 2.0
+wy = cos(h) * 2.0
 x_in = [v, gamma, psi, x, y, h, sigma, epsilon]
 k_x_in = [comsigma, comepsilon]
-dotv, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon = simulation_dynamics(x_in, k_x_in, sympy_version=True)
+dotv, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon = simulation_dynamics(x_in, k_x_in, sympy_version=True, wx_func=wx, wy_func=wy)
 
 ### prepares error and rate variables
 
 # q = Matrix(x_in)
 # q_dest = Matrix([0, 0, 0, 0, 0, 0, 0, 0])
 q = Matrix([x, y, h])
-q_dest = Matrix([1.15, 0.5, 0.0])
-e = (q_dest - q)
+q_dest = Matrix([0.01, 0.01, 0.01])
+# e = (q_dest - q)
+e = Matrix([(q_dest - q)[0] ** 2.0, (q_dest - q)[1] ** 2.0, (q_dest - q)[2] ** 2.0])
 edot = Derivative(e, t).doit()
 alpha = Symbol('alpha')
 r = edot + (alpha * e)
@@ -45,6 +48,7 @@ rdot = Derivative(r, t).doit()
 ### simplifies candidate Lyapunov function and its derivative
 
 V_candidate = 0.5 * r.transpose().dot(r)
+# V_candidate = ((q_dest[0] - x) ** 2.0) + ((q_dest[1] - y) ** 2.0) + ((q_dest[2] - h) ** 2.0)
 V_candidate_dot = Derivative(V_candidate, t).doit()
 V_candidate_dot = V_candidate_dot.subs(Derivative(x, t), dotx)
 V_candidate_dot = V_candidate_dot.subs(Derivative(y, t), doty)
@@ -76,13 +80,16 @@ V_candidate = V_candidate.subs(Derivative(epsilon, t), dotepsilon)
 ### iteratively plots state trajectory with Lyapunov control
 
 #                    [v, gamma, psi,   x,   y, h, sigma, eps]
-x_current = np.array([0.1, 0.0, 0.0, 0.0, 0.0, 3.5, 0.0, 0.0]) # starts with x_0
+x_current = np.array([0.1, 0.0, 0.0, -2.0, 1.0, 3.5, 0.0, 0.0]) # starts with x_0
 u_last = np.array([0.0, 0.0]) # tracks previous controls state, used to calculate deriv(u)
 u_current = np.array([0.0, 0.0])
 t_current = 0.0
-t_delta = 0.011
-n = 220
-K = 60.0
+t_delta = 0.005
+n = 300
+K = 20.0
+alpha_r = 1.0
+
+entered_near_goal_sphere = False
 
 test_x_traj = np.zeros((8, n+1))
 test_x_traj[:, 0] = np.array(x_current)
@@ -90,13 +97,14 @@ for i in range(n):
     print(" * Iteration "+str(i)+" of "+str(n))
 
     # substitutes state into Vdot, V
-    alpha_r = 2.25
     V_candidate_dot_test = V_candidate_dot.subs({x: x_current[3], y: x_current[4], h: x_current[5], epsilon: x_current[7], gamma: x_current[1], sigma: x_current[6], v: x_current[0], psi: x_current[2], alpha: alpha_r})
     V_candidate_test = V_candidate.subs({x: x_current[3], y: x_current[4], h: x_current[5], epsilon: x_current[7], gamma: x_current[1], sigma: x_current[6], v: x_current[0], psi: x_current[2], alpha: alpha_r})
 
     if i <= 1: # picks zero controls for first few iterations
         u_current[0] = 0.0
         u_current[1] = 0.0
+
+        V_current = 0.0
     else:
         # u_delta = (u_current - u_last)
         # V_candidate_dot_test = V_candidate_dot_test.subs({Derivative(comepsilon, t): u_delta[1], Derivative(comsigma, t): u_delta[0]}).doit()
@@ -137,21 +145,37 @@ for i in range(n):
         u_current[1] = re(comepsilon_fin)
 
         # calculates current V
+        # u_current[0] = 0.0
+        # u_current[1] = 0.0
         V_current = V_candidate_test.subs({comsigma: u_current[0], comepsilon: u_current[1]})
         print(" * Current V: "+str(V_current))
 
     # bounds u
-    u_current[0] = np.clip(u_current[0], -np.pi/1.0, np.pi/1.0)
-    u_current[1] = np.clip(u_current[1], -100.0, 100.0)
+    # u_current[0] = np.clip(u_current[0], -np.pi*4, np.pi*4)
+    # u_current[1] = np.clip(u_current[1], -70.0, 70.0)
 
     # executes dynamics and computes new state
-    x_current = discrete_simulation_dynamics(x_current, u_current, t_delta)
+    x_current = discrete_simulation_dynamics(x_current, u_current, t_delta, wx_func=wx.subs({h: x_current[5]}), wy_func=wy.subs({h: x_current[5]}))
 
     # saves state to trajectory
     test_x_traj[:, i+1] = np.array(x_current)
 
     # updates controls
     u_last = np.copy(u_current)
+
+    # early truncation test
+    dist_to_goal = (((test_x_traj[3, i+1] - q_dest[0]) ** 2.0) + ((test_x_traj[4, i+1] - q_dest[1]) ** 2.0) + ((test_x_traj[5, i+1] - q_dest[2]) ** 2.0)) ** 0.5
+    if dist_to_goal < 1.5 and entered_near_goal_sphere == False:
+        entered_near_goal_sphere = True
+        print(" !! Entered vicinity of goal point")
+    elif dist_to_goal > 2.0 and entered_near_goal_sphere == True:
+        print(" !! Leaving vicinity of goal point, stopping simulation")
+        test_x_traj = test_x_traj[:, :i+2]
+        break
+    if V_current >= 100000:
+        print(" !! Simulation unstable, ending early")
+        test_x_traj = test_x_traj[:, :i+2]
+        break
 
 
 ### graphs final state trajectory
