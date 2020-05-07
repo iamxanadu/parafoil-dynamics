@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import csv
 import os
 from dynamics import *
@@ -6,9 +7,31 @@ from graphics import *
 
 
 target_trajectory_path = "trajectories/LongWayOut.csv"
+n_divisions = 50
 
 
-def parse_trajectory(path):
+def randomly_offset_state(state): # TODO: add randomization for other state variables
+    new_state = np.copy(state)
+    new_state[3] = new_state[3] + ((random.random() - 0.5) * 20.0)
+    new_state[4] = new_state[4] + ((random.random() - 0.5) * 20.0)
+    return new_state
+
+def subdivide_trajectory(trajectory, divisions=50):
+    new_traj_states = []
+
+    for i in range(trajectory.shape[0]-1):
+        prev_state = trajectory[i]
+        curr_state = trajectory[i+1]
+
+        # interpolates new states
+        for j in range(divisions):
+            alpha = j / divisions
+            state = (prev_state * (1.0 - alpha)) + (curr_state * alpha)
+            new_traj_states.append(state)
+
+    return np.stack(new_traj_states, axis=0)
+
+def parse_trajectory(path, divisions=None):
 
     # TODO: remove dummy trajectory
     # traj = np.zeros((1000, 8))
@@ -42,18 +65,24 @@ def parse_trajectory(path):
 
             t_delta = time_delta_sum / (len(traj_states) - 1)
             traj = np.stack(traj_states, axis=0)
+            if divisions is not None:
+                traj = subdivide_trajectory(traj, divisions)
+                t_delta = t_delta / divisions
             return (traj, t_delta)
 
         # loads trajectory from npy file
         elif path[-3:] == "npy":
-            return (np.load(path), None)
+            traj = np.load(path)
+            if divisions is not None:
+                traj = subdivide_trajectory(traj, divisions)
+            return (traj, None)
 
     return (np.zeros((1, 8)), None)
 
 def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
-    k_d = 0.01
-    k_pa = 0.01
-    k_po = 0.01
+    k_d = 0.02
+    k_pa = 0.02
+    k_po = 0.02
 
     if t_delta is None:
         t_delta = 0.005
@@ -92,12 +121,12 @@ def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
 if __name__ == "__main__":
 
     # loads & parses target trajectory
-    target_trajectory, suggested_t_delta = parse_trajectory(target_trajectory_path)
+    target_trajectory, suggested_t_delta = parse_trajectory(target_trajectory_path, divisions=n_divisions)
     print(" !! Using suggested t_delta: "+str(suggested_t_delta))
 
     # initializes initial state
     # x_current = np.array([0.1, 0.0, 0.0, -1.0, 1.0, 4.5, 0.0, 0.0]) # starts with x_0
-    x_current = target_trajectory[0]
+    x_current = randomly_offset_state(target_trajectory[0])
 
     # implements PID controller to follow target trajectory
     actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)

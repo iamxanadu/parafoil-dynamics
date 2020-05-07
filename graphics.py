@@ -31,6 +31,10 @@ class Visualizer(object):
 
     # converts state trajectory into separate time-indexed state variables
     def process_state(self, x_traj):
+        if x_traj.shape[-1] > 500:
+            print(" !! Trajectory is too large for rendering, simplifying rendered trajectory...")
+            x_traj = x_traj[:, ::x_traj.shape[-1] // 150]
+
         time = np.arange(x_traj.shape[-1])
         V = x_traj[0, :]
         gamma = x_traj[1, :]
