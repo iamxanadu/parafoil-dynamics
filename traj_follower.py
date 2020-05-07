@@ -80,9 +80,9 @@ def parse_trajectory(path, divisions=None):
     return (np.zeros((1, 8)), None)
 
 def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
-    k_d = 0.02
-    k_pa = 0.02
-    k_po = 0.02
+    k_d = 0.025
+    k_pa = 0.035
+    k_po = 0.01
 
     if t_delta is None:
         t_delta = 0.005
