@@ -13,6 +13,8 @@ def simulation_dynamics(x, u, sympy_version=False, wx_func=None, wy_func=None):
         x (iterable): state
         u (iterable): inputs
     """
+
+    eps = 1e-8
     V, gamma, psi, x, y, h, sigma, epsilon = x
     comsigma, comepsilon = u
 
@@ -30,18 +32,18 @@ def simulation_dynamics(x, u, sympy_version=False, wx_func=None, wy_func=None):
     W = m * g
 
     if sympy_version:
-        dotV = -(D + W * sympy.sin(gamma)) / m
-        dotgamma = (L * sympy.cos(sigma) - W * sympy.cos(gamma)) / (m * V)
-        dotpsi = (L * sympy.sin(sigma)) / (m * V * sympy.cos(gamma))
+        dotV = -(D + W * sympy.sin(gamma)) / (m + eps)
+        dotgamma = (L * sympy.cos(sigma) - W * sympy.cos(gamma)) / ((m * V) + eps)
+        dotpsi = (L * sympy.sin(sigma)) / ((m * V * sympy.cos(gamma)) + eps)
         dotx = V * sympy.cos(gamma) * sympy.cos(psi) + wx
         doty = V * sympy.cos(gamma) * sympy.sin(psi) + wy
         doth = V * sympy.sin(gamma)
         dotsigma = (comsigma - sigma)*6.0/taus
         dotepsilon = (comepsilon - epsilon)*6.0/taue
     else:
-        dotV = -(D + W * math.sin(gamma)) / m
-        dotgamma = (L * math.cos(sigma) - W * math.cos(gamma)) / (m * V)
-        dotpsi = (L * math.sin(sigma)) / (m * V * math.cos(gamma))
+        dotV = -(D + W * math.sin(gamma)) / (m + eps)
+        dotgamma = (L * math.cos(sigma) - W * math.cos(gamma)) / ((m * V) + eps)
+        dotpsi = (L * math.sin(sigma)) / ((m * V * math.cos(gamma)) + eps)
         dotx = V * math.cos(gamma) * math.cos(psi) + wx
         doty = V * math.cos(gamma) * math.sin(psi) + wy
         doth = V * math.sin(gamma)
@@ -55,7 +57,6 @@ def simulation_dynamics(x, u, sympy_version=False, wx_func=None, wy_func=None):
 
 def discrete_simulation_dynamics(x, u, dt, wx_func=None, wy_func=None):
     xdot = simulation_dynamics(x, u, sympy_version=False, wx_func=wx_func, wy_func=wy_func)
-    # print(xdot)
     return (dt * xdot) + x
 
 

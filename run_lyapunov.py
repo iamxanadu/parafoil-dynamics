@@ -38,8 +38,8 @@ dotv, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon = simulation_dyna
 # q_dest = Matrix([0, 0, 0, 0, 0, 0, 0, 0])
 q = Matrix([x, y, h])
 q_dest = Matrix([0.01, 0.01, 0.01])
-# e = (q_dest - q)
-e = Matrix([(q_dest - q)[0] ** 2.0, (q_dest - q)[1] ** 2.0, (q_dest - q)[2] ** 2.0])
+e = (q_dest - q)
+# e = Matrix([(q_dest - q)[0] ** 2.0, (q_dest - q)[1] ** 2.0])
 edot = Derivative(e, t).doit()
 alpha = Symbol('alpha')
 r = edot + (alpha * e)
@@ -80,13 +80,13 @@ V_candidate = V_candidate.subs(Derivative(epsilon, t), dotepsilon)
 ### iteratively plots state trajectory with Lyapunov control
 
 #                    [v, gamma, psi,   x,   y, h, sigma, eps]
-x_current = np.array([0.1, 0.0, 0.0, -2.0, 1.0, 3.5, 0.0, 0.0]) # starts with x_0
+x_current = np.array([0.1, 0.0, 0.0, 1.0, 1.0, 4.0, 0.0, 0.0]) # starts with x_0
 u_last = np.array([0.0, 0.0]) # tracks previous controls state, used to calculate deriv(u)
 u_current = np.array([0.0, 0.0])
 t_current = 0.0
-t_delta = 0.005
+t_delta = 0.01
 n = 300
-K = 20.0
+K = 30.0
 alpha_r = 1.0
 
 entered_near_goal_sphere = False

@@ -19,11 +19,11 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Visualizer(object):
-    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None):
+    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None, target_trajectory=None):
         self.plot_heading = plot_heading
         self.goal_pos = goal_pos
         if x_traj is not None:
-            self.plot_state_trajectory(x_traj)
+            self.plot_state_trajectory(x_traj, target_trajectory=target_trajectory)
         elif lyapunov_function is not None:
             self.plot_landing_zone(lyapunov_function)
 
@@ -45,7 +45,7 @@ class Visualizer(object):
     ### public methods ###
 
     # plots the state of the parafoil/rocket over time
-    def plot_state_trajectory(self, x_traj):
+    def plot_state_trajectory(self, x_traj, target_trajectory=None):
         time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(x_traj)
 
         fig = plt.figure(figsize=plt.figaspect(1.5))
@@ -124,6 +124,11 @@ class Visualizer(object):
         ax1.plot(time, sigma, 'tab:orange')
         ax1.plot(time, eta, 'tab:green')
         ax1.legend(['Sigma', 'Eta'])
+
+        # also plots target trajectory if necessary
+        if target_trajectory is not None:
+            time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(target_trajectory)
+            ax0.plot3D(x_pos, y_pos, h, 'black')
 
         plt.show()
 
