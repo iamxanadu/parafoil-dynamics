@@ -111,8 +111,7 @@ class Visualizer(object):
 
         # saves frame
         camera.snap()
-
-        # removes parafoil from figure
+        print(" * Finished rendering frame "+str(i))
 
     # converts state trajectory into separate time-indexed state variables
     def process_state(self, x_traj, simplify_divisor=75):

@@ -143,3 +143,10 @@ cython_debug/
 # static files generated from Django application using `collectstatic`
 media
 static
+
+anim.gif
+*anim.gif
+./anim*
+./anim.*
+./anim.gif
+*/anim.gif
