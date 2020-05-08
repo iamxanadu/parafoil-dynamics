@@ -88,7 +88,7 @@ class Visualizer(object):
 
             # modifies xs, ys, and hs depending on gamma, psi, and sigma(?)
             beta = gamma[i]
-            alpha = psi[i] # + (np.pi/2)
+            alpha = psi[i] + (np.pi)
             points = np.array([
                 [-parafoil_depth, -parafoil_width, 0],
                 [-parafoil_depth, parafoil_width, 0],
