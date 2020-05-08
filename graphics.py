@@ -62,6 +62,19 @@ class Visualizer(object):
         ax0.plot3D(x_pos, y_pos, h, 'blue')
         ax0.scatter(x_pos, y_pos, h, marker='o')
 
+        # plots two points to enforce isometric grid
+        x_min = np.amin(x_pos)
+        y_min = np.amin(y_pos)
+        h_min = np.amin(h)
+        x_max = np.amax(x_pos)
+        y_max = np.amin(y_pos)
+        h_max = np.amin(h)
+
+        center = np.array([(x_min + x_max)/2, (y_min + y_max)/2, (h_min + h_max)/2])
+        width = np.amax([x_max - x_min, y_max - y_min, h_max - h_min])
+        bounds = np.stack([center - width/2, center + width/2], axis=0)
+        ax0.scatter(bounds[:, 0], bounds[:, 1], bounds[:, 2], marker='.', color='white')
+
         # marks points near goal state
         if self.goal_pos is not None:
             diffs = np.zeros((3, V.shape[-1]))
