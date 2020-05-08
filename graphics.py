@@ -70,7 +70,7 @@ class Visualizer(object):
         y_max = np.amin(y_pos)
         h_max = np.amin(h)
 
-        center = np.array([(x_min + x_max)/2, (y_min + y_max)/2, (h_min + h_max)/2])
+        center = np.array([np.sum(x_pos)/x_pos.shape[0], np.sum(y_pos)/y_pos.shape[0], np.sum(h)/h.shape[0]])
         width = np.amax([x_max - x_min, y_max - y_min, h_max - h_min])
         bounds = np.stack([center - width/2, center + width/2], axis=0)
         ax0.scatter(bounds[:, 0], bounds[:, 1], bounds[:, 2], marker='.', color='white')
