@@ -150,3 +150,6 @@ anim.gif
 ./anim.*
 ./anim.gif
 */anim.gif
+.anim.gif
+.anim*
+*.anim.gif
