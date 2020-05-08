@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.animation import FuncAnimation
+from celluloid import Camera
 import numpy as np
 
 
@@ -19,18 +21,104 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Visualizer(object):
-    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None):
+    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None, target_trajectory=None, render_animation=False, anim_path="anim.gif"):
         self.plot_heading = plot_heading
         self.goal_pos = goal_pos
-        if x_traj is not None:
-            self.plot_state_trajectory(x_traj)
-        elif lyapunov_function is not None:
-            self.plot_landing_zone(lyapunov_function)
+        self.anim_path = anim_path
+        self.x_traj = x_traj
+
+        if not render_animation:
+            if x_traj is not None:
+                self.plot_state_trajectory(x_traj, target_trajectory=target_trajectory)
+            elif lyapunov_function is not None:
+                self.plot_landing_zone(lyapunov_function)
+        else:
+            time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(self.x_traj, simplify_divisor=200)
+
+            fig = plt.figure()
+            camera = Camera(fig)
+
+            ax0 = fig.add_subplot(1, 1, 1, projection='3d')
+            ax0.set_xlabel('X')
+            ax0.set_ylabel('Y')
+            ax0.set_zlabel('Altitude')
+
+            # plots two points to enforce isometric grid
+            x_min = np.amin(x_pos)
+            y_min = np.amin(y_pos)
+            h_min = np.amin(h)
+            x_max = np.amax(x_pos)
+            y_max = np.amin(y_pos)
+            h_max = np.amin(h)
+
+            center = np.array([np.sum(x_pos)/x_pos.shape[0], np.sum(y_pos)/y_pos.shape[0], np.sum(h)/h.shape[0]])
+            width = np.amax([x_max - x_min, y_max - y_min, h_max - h_min])
+            bounds = np.stack([center - width/2, center + width/2], axis=0)
+            ax0.scatter(bounds[:, 0], bounds[:, 1], bounds[:, 2], marker='.', color='white')
+
+            # renders animation frames
+            parafoil_scale = ((np.amax(x_pos) - np.amin(x_pos)) + (np.amax(y_pos) - np.amin(y_pos))) / 4
+            for i in range(V.shape[-1]):
+                self.animate(i, ax0, camera, parafoil_scale, V, gamma, psi, x_pos, y_pos, h, sigma, eta, target_trajectory)
+
+            anim = camera.animate()
+            anim.save(self.anim_path, writer='imagemagick', fps=30)
 
     ### private methods ###
 
+    # animation iteration
+    def animate(self, i, ax, camera, parafoil_scale, V, gamma, psi, x_pos, y_pos, h, sigma, eta, target_trajectory=None):
+
+        # adds parafoil model to render
+        parafoil_width = 0.3 * 0.5 * parafoil_scale
+        parafoil_depth = 0.15 * 0.5 * parafoil_scale
+        x = x_pos[i]
+        y = y_pos[i]
+        height = h[i]
+
+        # modifies xs, ys, and hs depending on gamma, psi, and sigma(?)
+        beta = gamma[i]
+        alpha = psi[i] + (np.pi)
+        points = np.array([
+            [-parafoil_depth, -parafoil_width, 0],
+            [-parafoil_depth, parafoil_width, 0],
+            [parafoil_depth, parafoil_width, 0],
+            [parafoil_depth, -parafoil_width, 0],
+        ]).transpose()
+        heading = np.array([
+            [1.0, 0.0, 0.0],
+        ]).transpose()
+        transformation_matrix = np.array([
+            [np.cos(alpha)*np.cos(beta), -np.sin(alpha), np.cos(alpha)*np.sin(beta)],
+            [np.sin(alpha)*np.cos(beta), np.cos(alpha), np.sin(alpha)*np.sin(beta)],
+            [-np.sin(beta), 0, np.cos(beta)],
+        ])
+        new_offsets = transformation_matrix.dot(points)
+        xs = new_offsets[0, :] + x
+        ys = new_offsets[1, :] + y
+        hs = new_offsets[2, :] + height
+
+        verts = [list(zip(xs, ys, hs))]
+        collection = Poly3DCollection(verts, linewidths=1, edgecolors='red', alpha=0.2, zsort='min')
+        face_color = "salmon"
+        collection.set_facecolor(face_color)
+        ax.add_collection3d(collection)
+
+        # also plots target trajectory if necessary
+        if target_trajectory is not None:
+            time_b, V_b, gamma_b, psi_b, x_pos_b, y_pos_b, h_b, sigma_b, eta_b = self.process_state(target_trajectory)
+            ax.plot3D(x_pos_b, y_pos_b, h_b, 'black')
+
+        # saves frame
+        camera.snap()
+        print(" * Finished rendering frame "+str(i))
+
     # converts state trajectory into separate time-indexed state variables
-    def process_state(self, x_traj):
+    def process_state(self, x_traj, simplify_divisor=75):
+        if x_traj.shape[-1] > 500:
+            print(" !! Trajectory is too large for rendering, simplifying rendered trajectory...")
+            x_traj = x_traj[:, ::x_traj.shape[-1] // simplify_divisor]
+
         time = np.arange(x_traj.shape[-1])
         V = x_traj[0, :]
         gamma = x_traj[1, :]
@@ -45,7 +133,7 @@ class Visualizer(object):
     ### public methods ###
 
     # plots the state of the parafoil/rocket over time
-    def plot_state_trajectory(self, x_traj):
+    def plot_state_trajectory(self, x_traj, target_trajectory=None):
         time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(x_traj)
 
         fig = plt.figure(figsize=plt.figaspect(1.5))
@@ -57,6 +145,19 @@ class Visualizer(object):
         ax0.set_zlabel('Altitude')
         ax0.plot3D(x_pos, y_pos, h, 'blue')
         ax0.scatter(x_pos, y_pos, h, marker='o')
+
+        # plots two points to enforce isometric grid
+        x_min = np.amin(x_pos)
+        y_min = np.amin(y_pos)
+        h_min = np.amin(h)
+        x_max = np.amax(x_pos)
+        y_max = np.amin(y_pos)
+        h_max = np.amin(h)
+
+        center = np.array([np.sum(x_pos)/x_pos.shape[0], np.sum(y_pos)/y_pos.shape[0], np.sum(h)/h.shape[0]])
+        width = np.amax([x_max - x_min, y_max - y_min, h_max - h_min])
+        bounds = np.stack([center - width/2, center + width/2], axis=0)
+        ax0.scatter(bounds[:, 0], bounds[:, 1], bounds[:, 2], marker='.', color='white')
 
         # marks points near goal state
         if self.goal_pos is not None:
@@ -85,7 +186,7 @@ class Visualizer(object):
 
             # modifies xs, ys, and hs depending on gamma, psi, and sigma(?)
             beta = gamma[i]
-            alpha = psi[i] + (np.pi/2)
+            alpha = psi[i] + (np.pi)
             points = np.array([
                 [-parafoil_depth, -parafoil_width, 0],
                 [-parafoil_depth, parafoil_width, 0],
@@ -126,6 +227,11 @@ class Visualizer(object):
         ax1.plot(time, sigma, 'tab:orange')
         ax1.plot(time, eta, 'tab:green')
         ax1.legend(['Sigma', 'Eta'])
+
+        # also plots target trajectory if necessary
+        if target_trajectory is not None:
+            time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(target_trajectory)
+            ax0.plot3D(x_pos, y_pos, h, 'black')
 
         plt.show()
 
