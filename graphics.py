@@ -33,7 +33,7 @@ class Visualizer(object):
     def process_state(self, x_traj):
         if x_traj.shape[-1] > 500:
             print(" !! Trajectory is too large for rendering, simplifying rendered trajectory...")
-            x_traj = x_traj[:, ::x_traj.shape[-1] // 100]
+            x_traj = x_traj[:, ::x_traj.shape[-1] // 75]
 
         time = np.arange(x_traj.shape[-1])
         V = x_traj[0, :]
