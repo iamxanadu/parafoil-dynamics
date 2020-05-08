@@ -2,6 +2,7 @@ import numpy as np
 import random
 import csv
 import os
+import sys
 from dynamics import *
 from graphics import *
 
@@ -120,6 +121,12 @@ def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
 
 if __name__ == "__main__":
 
+    # parses arguments
+    arguments = sys.argv
+    render_animation = False
+    if 'anim' in arguments[-1]:
+        render_animation = True
+
     # loads & parses target trajectory
     target_trajectory, suggested_t_delta = parse_trajectory(target_trajectory_path, divisions=n_divisions)
     print(" !! Using suggested t_delta: "+str(suggested_t_delta))
@@ -131,6 +138,6 @@ if __name__ == "__main__":
     # implements PID controller to follow target trajectory
     actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)
 
-    # plots actual trajectory
-    visualizer = Visualizer(x_traj=actual_trajectory.transpose(), plot_heading=False, target_trajectory=target_trajectory.transpose())
+    # plots actual trajectory or renders animation
+    visualizer = Visualizer(x_traj=actual_trajectory.transpose(), plot_heading=False, target_trajectory=target_trajectory.transpose(), render_animation=render_animation)
 
