@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # initializes initial state
     # x_current = np.array([0.1, 0.0, 0.0, -1.0, 1.0, 4.5, 0.0, 0.0]) # starts with x_0
-    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=50.0)
+    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=20.0)
 
     # implements PID controller to follow target trajectory
     actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)
