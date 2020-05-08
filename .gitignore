@@ -153,3 +153,10 @@ anim.gif
 .anim.gif
 .anim*
 *.anim.gif
+*.anim/
+*.anim/*
+.anim/*
+anim/
+.anim/
+./anim/*
+*./anim/

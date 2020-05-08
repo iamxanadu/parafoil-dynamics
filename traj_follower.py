@@ -7,7 +7,7 @@ from dynamics import *
 from graphics import *
 
 
-target_trajectory_path = "trajectories/LongWayOut.csv"
+target_trajectory_path = "trajectories/FromAbove.csv"
 n_divisions = 50
 
 
