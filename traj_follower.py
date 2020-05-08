@@ -11,10 +11,10 @@ target_trajectory_path = "trajectories/FromAbove.csv"
 n_divisions = 50
 
 
-def randomly_offset_state(state): # TODO: add randomization for other state variables
+def randomly_offset_state(state, randomization_coefficient=20.0): # TODO: add randomization for other state variables
     new_state = np.copy(state)
-    new_state[3] = new_state[3] + ((random.random() - 0.5) * 20.0)
-    new_state[4] = new_state[4] + ((random.random() - 0.5) * 20.0)
+    new_state[3] = new_state[3] + ((random.random() - 0.5) * randomization_coefficient)
+    new_state[4] = new_state[4] + ((random.random() - 0.5) * randomization_coefficient)
     return new_state
 
 def subdivide_trajectory(trajectory, divisions=50):
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # initializes initial state
     # x_current = np.array([0.1, 0.0, 0.0, -1.0, 1.0, 4.5, 0.0, 0.0]) # starts with x_0
-    x_current = randomly_offset_state(target_trajectory[0])
+    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=50.0)
 
     # implements PID controller to follow target trajectory
     actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)
