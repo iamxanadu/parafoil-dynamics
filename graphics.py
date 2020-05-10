@@ -21,11 +21,12 @@ class Arrow3D(FancyArrowPatch):
 
 
 class Visualizer(object):
-    def __init__(self, x_traj=None, lyapunov_function=None, plot_heading=True, goal_pos=None, target_trajectory=None, render_animation=False, anim_path="anim.gif"):
+    def __init__(self, x_traj=None, t_delta=None, lyapunov_function=None, plot_heading=True, goal_pos=None, target_trajectory=None, render_animation=False, anim_path="anim.gif", ):
         self.plot_heading = plot_heading
         self.goal_pos = goal_pos
         self.anim_path = anim_path
         self.x_traj = x_traj
+        self.t_delta = t_delta
 
         if not render_animation:
             if x_traj is not None:
@@ -135,6 +136,7 @@ class Visualizer(object):
     # plots the state of the parafoil/rocket over time
     def plot_state_trajectory(self, x_traj, target_trajectory=None):
         time, V, gamma, psi, x_pos, y_pos, h, sigma, eta = self.process_state(x_traj)
+        dilution_factor = x_traj.shape[-1] / time.shape[0]
 
         fig = plt.figure(figsize=plt.figaspect(1.5))
         fig.suptitle('State Trajectory')
@@ -221,10 +223,13 @@ class Visualizer(object):
                 ax0.add_artist(a)
 
         # plots sigma and eta
+        if self.t_delta is not None:
+            time = time * self.t_delta * dilution_factor
         ax1 = fig.add_subplot(2, 1, 2)
         ax1.plot(time, sigma, 'tab:orange')
         ax1.plot(time, eta, 'tab:green')
         ax1.legend(['Sigma', 'Eta'])
+        ax1.set_xlabel('Time')
 
         # also plots target trajectory if necessary
         if target_trajectory is not None:

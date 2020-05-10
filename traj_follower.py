@@ -80,10 +80,10 @@ def parse_trajectory(path, divisions=None):
 
     return (np.zeros((1, 8)), None)
 
-def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
-    k_d = 0.025
-    k_pa = 0.035
-    k_po = 0.01
+def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None, pick_nearest_state=False):
+    k_d = 0.04
+    k_pa = 0.04
+    k_po = 0.015
 
     if t_delta is None:
         t_delta = 0.005
@@ -93,6 +93,7 @@ def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None):
     trajectory_states = []
     n = target_trajectory.shape[0]
     for i in range(n):
+        target_state = target_trajectory[i]
 
         # implements PD controller from paper (p. 80)
         e_1 = current_x[3] - target_trajectory[i, 3]
@@ -133,11 +134,11 @@ if __name__ == "__main__":
 
     # initializes initial state
     # x_current = np.array([0.1, 0.0, 0.0, -1.0, 1.0, 4.5, 0.0, 0.0]) # starts with x_0
-    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=20.0)
+    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=1.0)
 
     # implements PID controller to follow target trajectory
     actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)
 
     # plots actual trajectory or renders animation
-    visualizer = Visualizer(x_traj=actual_trajectory.transpose(), plot_heading=False, target_trajectory=target_trajectory.transpose(), render_animation=render_animation)
+    visualizer = Visualizer(x_traj=actual_trajectory.transpose(), t_delta=suggested_t_delta, plot_heading=False, target_trajectory=target_trajectory.transpose(), render_animation=render_animation)
 
