@@ -229,7 +229,7 @@ class Visualizer(object):
         ax1.plot(time, sigma, 'tab:orange')
         ax1.plot(time, eta, 'tab:green')
         ax1.legend(['Sigma', 'Eta'])
-        ax1.set_xlabel('Time')
+        ax1.set_xlabel('Time (Seconds)')
 
         # also plots target trajectory if necessary
         if target_trajectory is not None:
