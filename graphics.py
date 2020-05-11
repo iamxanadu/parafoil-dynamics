@@ -175,7 +175,6 @@ class Visualizer(object):
             ax0.scatter(float(self.goal_pos[0]), float(self.goal_pos[1]), float(self.goal_pos[2]), c='orange', s=140)
 
         # plots vectors
-        '''
         parafoil_scale = ((np.amax(x_pos) - np.amin(x_pos)) + (np.amax(y_pos) - np.amin(y_pos))) / 4
         for i in range(V.shape[-1]):
 
@@ -222,7 +221,6 @@ class Visualizer(object):
                     [height, height + new_heading[2, 0] * v], mutation_scale=10, 
                     lw=2, arrowstyle="-|>", color="r")
                 ax0.add_artist(a)
-        '''
         
         # plots sigma and eta
         if self.t_delta is not None:
