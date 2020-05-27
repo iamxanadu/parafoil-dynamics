@@ -7,8 +7,8 @@ from dynamics import *
 from graphics import *
 
 
-target_trajectory_path = "trajectories/FromAbove.csv"
-n_divisions = 50
+target_trajectory_path = "trajectories/LongWayOutWind.csv"
+n_divisions = 100
 
 
 def randomly_offset_state(state, randomization_coefficient=20.0): # TODO: add randomization for other state variables
@@ -80,10 +80,10 @@ def parse_trajectory(path, divisions=None):
 
     return (np.zeros((1, 8)), None)
 
-def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None, pick_nearest_state=False):
-    k_d = 0.04
-    k_pa = 0.04
-    k_po = 0.015
+def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None, pick_nearest_state=False, wx_func=None, wy_func=None):
+    k_d = 0.05
+    k_pa = 0.05
+    k_po = 0.02
 
     if t_delta is None:
         t_delta = 0.005
@@ -99,8 +99,9 @@ def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None, pic
         e_1 = current_x[3] - target_trajectory[i, 3]
         e_2 = current_x[4] - target_trajectory[i, 4]
         e_3 = current_x[2] - target_trajectory[i, 2]
+        e_4 = current_x[5] - target_trajectory[i, 5]
 
-        e_atrack = (e_1*np.cos(target_trajectory[i, 2])) + (e_2*np.sin(target_trajectory[i, 2]))
+        e_atrack = (e_1*np.cos(target_trajectory[i, 2])) + (e_2*np.sin(target_trajectory[i, 2]))# + (e_4)
         e_xtrack = (e_1*np.sin(target_trajectory[i, 2])) - (e_2*np.cos(target_trajectory[i, 2]))
 
         V = current_x[0]
@@ -113,7 +114,7 @@ def simulate_actual_trajectory(target_trajectory, start_state, t_delta=None, pic
         current_u[1] = k_po * e_atrack
 
         # simulates dynamics and saves state to trajectory
-        current_x = np.copy(discrete_simulation_dynamics(current_x, current_u, t_delta))
+        current_x = np.copy(discrete_simulation_dynamics(current_x, current_u, t_delta, wx_func=wx_func, wy_func=wy_func))
         trajectory_states.append(np.copy(current_x))
 
         print(" * Finished simulating state "+str(i)+" of "+str(n))
@@ -134,10 +135,10 @@ if __name__ == "__main__":
 
     # initializes initial state
     # x_current = np.array([0.1, 0.0, 0.0, -1.0, 1.0, 4.5, 0.0, 0.0]) # starts with x_0
-    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=1.0)
+    x_current = randomly_offset_state(target_trajectory[0], randomization_coefficient=0.01)
 
     # implements PID controller to follow target trajectory
-    actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta)
+    actual_trajectory = simulate_actual_trajectory(target_trajectory, x_current, suggested_t_delta, wx_func=-3, wy_func=6)
 
     # plots actual trajectory or renders animation
     visualizer = Visualizer(x_traj=actual_trajectory.transpose(), t_delta=suggested_t_delta, plot_heading=False, target_trajectory=target_trajectory.transpose(), render_animation=render_animation)
