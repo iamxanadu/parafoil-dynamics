@@ -1,9 +1,8 @@
-from math import sin, cos, e, atan2, exp
-from constants import g
+from math import sin, cos, exp
 import numpy as np
 
 
-def constant_controller(x):
+def constant_controller():
     """Dummy controller function. Returns zero commands for both inputs to the parafoil. Ordinarily you would do some calculations with x to produce the commands u.
 
     Arguments:
@@ -16,10 +15,18 @@ def constant_controller(x):
 
 
 def dubins_lyapunov_controller(x, a, eps, umax):
-    '''
-    V = x[0]
-    gam = x[1]
-    '''
+    """A lyapunov-based controler which assumes that the parafoil is roughly Dubins.
+
+    Arguments:
+        x {list} -- The state of the parafoil.
+        a {float} -- Lowest turning rate allowed for Dubins dynamics.
+        eps {float} -- parameter determining how aggressive the controller is.
+        umax {float} -- The max turning rate allowed for the Dubins dynamics.
+
+    Returns:
+        list -- The control for th parafoil (2x1).
+    """
+
     psi = x[2]
     px = x[3]
     py = x[4]
@@ -44,6 +51,8 @@ def dubins_lyapunov_controller(x, a, eps, umax):
         k = n/d + a
 
     # Convert dubins command to pseduo bank angle
+    # NOTE This doesn't seem to work well - not really sure why
+    # TODO Figure out why this doesn't work - should allow setting of the final radius by max turn rate
     # r = 1/(k*cos(gam))
     # sig = atan2(V**2 * cos(gam), g*r)
     return [k, 0]
