@@ -1,0 +1,1 @@
+Just run ```run.py``` to see the parafoil trajectory with a Lyapunov-Dubins controller. Requires scipy, matplotlib, and sympy.
