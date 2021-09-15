@@ -23,8 +23,8 @@ def integrand(t, x):
 # Solve until ground hit
 # hf = sys.float_info.max
 # final_height_threshold = 50
-x0 = [7, -0.15, 0.01, -1000, 1000, 9000, 0, 0]
-tf = 1000
+x0 = [7, -0.15, 0.01, -100, 100, 9000, 0, 0]
+tf = 200
 t = np.linspace(0, tf, tf)
 
 # Call odeint

@@ -256,7 +256,3 @@ class Visualizer(object):
         ax3.legend(['Flight Path Angle'])
 
         plt.show()
-
-    # samples lyapunov function to approximate range of landing zone
-    def plot_landing_zone(self, lyapunov_control_function):
-        raise NotImplementedError
