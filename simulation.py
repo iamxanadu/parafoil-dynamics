@@ -1,11 +1,12 @@
 from matplotlib import scale
-from numpy import arange, sqrt, interp, linspace
+from numpy import arange, arcsin, sqrt, interp, linspace
 from math import pi
 from numpy.random import normal
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import rfft, rfftfreq, irfft
-from numpy import cos, sin, array, max, min
+from numpy import cos, sin, array, max, min, clip
+from math import atan2, asin
 from scipy.integrate import solve_ivp
 import time
 # from numba import jit
@@ -152,13 +153,21 @@ class Simulation():
         while time_hist[-1] + t_step < t_f:
             y_0 = state_hist[-1]
             t_next = time_hist[-1] + t_step
+            u = self.controller(y_0)
+            print(f'Taking step at time {time_hist[-1]}')
             sol = solve_ivp(
                 self._dynamics, (time_hist[-1], t_next), y_0,
-                t_eval=[t_next])
+                t_eval=[t_next], args=(u))
+            if sol.status != 0:
+                print('Integration failed!')
+                break
             state_hist.append(sol.y[:, 0])
             time_hist.append(sol.t[0])
 
-        return time_hist, state_hist
+        t = time_hist
+        y = array(state_hist).T
+        self._plot_sim_results(t, y)
+        return t, y
 
     def run(self, t_step: float, x_0: list):
         state_hist = [array(x_0)]
@@ -168,10 +177,16 @@ class Simulation():
         while ground_hit == False:
             y_0 = state_hist[-1]
             t_next = time_hist[-1] + t_step
+            u = self.controller(y_0)
+            print(f'Taking step at time {time_hist[-1]}')
+            # TODO if solver fails, abort and graph result anyway so we can see what happened
             if y_0[5] < x_0[5]*0.1:
                 sol = solve_ivp(
                     self._dynamics, (time_hist[-1], t_next), y_0,
-                    t_eval=[t_next], events=self._event_ground_hit)
+                    t_eval=[t_next], events=self._event_ground_hit, args=(u))
+                if sol.status != 0:
+                    print('Integration failed!')
+                    break
                 if sol.t_events[0].size == 0:
                     state_hist.append(sol.y[:, 0])
                     time_hist.append(sol.t[0])
@@ -182,7 +197,10 @@ class Simulation():
             else:
                 sol = solve_ivp(
                     self._dynamics, (time_hist[-1], t_next), y_0,
-                    t_eval=[t_next], method='RK23')
+                    t_eval=[t_next], method='RK23', args=u)
+                if sol.status != 0:
+                    print('Integration failed!')
+                    break
                 state_hist.append(sol.y[:, 0])
                 time_hist.append(sol.t[0])
 
@@ -197,13 +215,78 @@ class Simulation():
     def enableWind(self, windOn):
         self.windOn = windOn
 
-    def _event_ground_hit(self, t, state):
+    def controller(self, x: array, rf=20.0):
+        v = x[0]
+        psi = x[2]
+        px = x[3]
+        py = x[4]
+        pz = x[5]
+
+        p_bearing = 0.05
+        goal_area_arrival_height = 100
+
+        r = sqrt(px**2 + py**2)
+
+        if r > 10*rf:
+            # initial guidance
+            # 1) bearing
+            bearing = atan2(-py, -px)
+            error_psi = bearing - psi
+            sigma = clip(p_bearing*error_psi, -0.1, 0.1)
+            # 2) descent rate
+            dh = pz - goal_area_arrival_height
+            gamma = clip(atan2(-dh, r), -0.1, 0)
+            return (sigma, gamma)
+
+        else:
+            # terminal guidance with Lyapunov
+            return (0, 0)
+
+    def lyapunov_feedback(self, x: array, eps: float, rf: float, a=0.0, mu=0.5):
+
+        v = x[0]
+        gamma = x[1]
+        psi = x[2]
+        px = x[3]
+        py = x[4]
+
+        umax = v/rf
+
+        assert mu > 0, 'Mu must be a positive real number'
+        assert ((-umax <= a) & (a < umax)
+                ), 'a must satisfy the following: -umax <= a < umax'
+
+        p = np.array([[px, py]]).T
+        R = np.array([[cos(psi), sin(psi)], [-sin(psi), cos(psi)]])
+        ptild = R@p
+        xbar = ptild[0, 0]
+
+        if xbar <= -mu:
+            k = a
+        elif xbar >= 0:
+            k = umax
+        else:
+            n = (umax - a)
+            expnt = 1/(xbar+mu) + 1/xbar
+            d = 1 + exp(expnt)
+            k = n/d + a
+
+        # Convert dubins command to pseduo bank angle
+        # NOTE This doesn't seem to work well - not really sure why
+        # TODO Figure out why this doesn't work - should allow setting of the final radius by max turn rate
+        # r = 1/(k*cos(gam))
+        # sig = atan2(V**2 * cos(gam), g*r)
+        Cl = self.Cltrim + self.delCl * eps
+        L = 1/2 * self.rho * v**2 * self.S * Cl
+        sigma = arcsin(k*self.m*v*cos(gamma)/L)
+        return sigma
+
+    def _event_ground_hit(self, t, state, comsigma, comepsilon):
         _, _, _, _, _, h, _, _ = state
         return h
 
-    def _dynamics(self, t, state):
+    def _dynamics(self, t, state, comsigma, comepsilon):
         V, gamma, psi, x, y, h, sigma, epsilon = state
-        comsigma, comepsilon = 0, 0
 
         # TODO Zero wind until I implement wind distribution
         wx = wy = 0
@@ -275,18 +358,21 @@ class Simulation():
             camera.snap()
             print(i)
 
-        animation = camera.animate(blit=True, interval=10)
+        animation = camera.animate(blit=True, interval=100)
         # Need to edit 'matplotlibrc' file here in order to tell it where imagemagick 'convert' binary is
-        animation.save('out.gif')  # , writer='imagemagick', fps=30)
+        animation.save('out.gif', writer='pillow', fps=30)
 
 
 if __name__ == "__main__":
     s = Simulation()
-    x0 = [7, -0.15, 0.01, -100, 100, 10, 0, 0]
+    x0 = [7, 0, 0, -500, 100, 500, 0, 0]
     tic = time.time()
+    # t, y = s.run_to_time(0.01, 100, x0)
     t, y = s.run(0.01, x0)
     elapsed = time.time() - tic
     print(elapsed)
+
+    # print(s.lyapunov_feedback([5, -0.15, 0.0, -1000, 1000, 0], 0, 20, 0))
 
     # vkwind = VonKarmanWind()
     # vkwind.plot_compare_von_karman_psd(40)

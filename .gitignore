@@ -160,3 +160,6 @@ anim/
 .anim/
 ./anim/*
 *./anim/
+
+*.gif
+*.png
