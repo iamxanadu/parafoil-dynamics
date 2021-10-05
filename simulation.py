@@ -5,12 +5,13 @@ from numpy.random import normal
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import rfft, rfftfreq, irfft
-from numpy import cos, sin, array, max, min, clip
+from numpy import cos, sin, array, max, min, clip, exp
 from math import atan2, asin
 from scipy.integrate import solve_ivp
 import time
 # from numba import jit
 from celluloid import Camera
+from alive_progress import alive_bar
 
 '''
 Behavior of Von Karman wind model:
@@ -146,6 +147,114 @@ class Simulation():
 
         self.windOn = False
 
+    def dispersion(self):
+        pass
+
+    def enableWind(self, windOn):
+        self.windOn = windOn
+
+    def geometric_control(self, x: list, eps: float, r0: float):
+
+        v = x[0]
+        gamma = x[1]
+        psi = x[2]
+        px = x[3]
+        py = x[4]
+
+        p = np.array([[px, py]]).T
+        R = np.array([[cos(psi), sin(psi)], [-sin(psi), cos(psi)]])
+        ptild = R@p
+        xbar = ptild[0, 0]
+        ybar = ptild[1, 0] + r0
+
+        r = sqrt(px**2 + py**2)
+        rbar = sqrt(xbar**2 + ybar**2)
+
+        u0 = v/r0
+
+        bearing = atan2(-ybar, -xbar)
+
+        if r <= r0:
+            u = 0
+        elif rbar > 1.5*r0:
+            u = 0.1*bearing
+        else:
+            u = u0
+
+        # TODO this needs to be formalized for that we don't accidentally clip out u0
+        u = np.clip(u, -0.5, 0.5)
+
+        Cl = self.Cltrim + self.delCl * eps
+        L = 1/2 * self.rho * v**2 * self.S * Cl
+        sigma = arcsin(u*self.m*v*cos(gamma)/L)
+        return sigma, eps
+
+    # def controller(self, x: array, rf=20.0):
+    #     v = x[0]
+    #     psi = x[2]
+    #     px = x[3]
+    #     py = x[4]
+    #     pz = x[5]
+
+    #     p_bearing = 0.05
+    #     goal_area_arrival_height = 100
+
+    #     r = sqrt(px**2 + py**2)
+
+    #     if r > 10*rf:
+    #         # initial guidance
+    #         # 1) bearing
+    #         bearing = atan2(-py, -px)
+    #         error_psi = bearing - psi
+    #         sigma = clip(p_bearing*error_psi, -0.1, 0.1)
+    #         # 2) descent rate
+    #         dh = pz - goal_area_arrival_height
+    #         gamma = clip(atan2(-dh, r), -0.1, 0)
+    #         return (sigma, gamma)
+
+    #     else:
+    #         # terminal guidance with Lyapunov
+    #         return (0, 0)
+
+    # def lyapunov_feedback(self, x: array, eps: float, rf: float, a=0.0, mu=10.0):
+
+    #     v = x[0]
+    #     gamma = x[1]
+    #     psi = x[2]
+    #     px = x[3]
+    #     py = x[4]
+
+    #     umax = v/rf
+
+    #     assert mu > 0, 'Mu must be a positive real number'
+    #     assert ((-umax <= a) & (a < umax)
+    #             ), 'a must satisfy the following: -umax <= a < umax'
+
+    #     p = np.array([[px, py]]).T
+    #     R = np.array([[cos(psi), sin(psi)], [-sin(psi), cos(psi)]])
+    #     ptild = R@p
+    #     xbar = ptild[0, 0]
+
+    #     if xbar <= -mu:
+    #         k = a
+    #     elif xbar >= 0:
+    #         k = umax
+    #     else:
+    #         n = (umax - a)
+    #         expnt = 1/(xbar+mu) + 1/xbar
+    #         d = 1 + exp(expnt)
+    #         k = n/d + a
+
+    #     # Convert dubins command to pseduo bank angle
+    #     # NOTE This doesn't seem to work well - not really sure why
+    #     # TODO Figure out why this doesn't work - should allow setting of the final radius by max turn rate
+    #     # r = 1/(k*cos(gam))
+    #     # sig = atan2(V**2 * cos(gam), g*r)
+    #     Cl = self.Cltrim + self.delCl * eps
+    #     L = 1/2 * self.rho * v**2 * self.S * Cl
+    #     sigma = arcsin(k*self.m*v*cos(gamma)/L)
+    #     return sigma, eps
+
     def run_to_time(self, t_step: float, t_f: float, x_0: list):
         state_hist = [array(x_0)]
         time_hist = [0]
@@ -174,112 +283,46 @@ class Simulation():
         time_hist = [0]
         ground_hit = False
 
-        while ground_hit == False:
-            y_0 = state_hist[-1]
-            t_next = time_hist[-1] + t_step
-            u = self.controller(y_0)
-            print(f'Taking step at time {time_hist[-1]}')
-            # TODO if solver fails, abort and graph result anyway so we can see what happened
-            if y_0[5] < x_0[5]*0.1:
-                sol = solve_ivp(
-                    self._dynamics, (time_hist[-1], t_next), y_0,
-                    t_eval=[t_next], events=self._event_ground_hit, args=(u))
-                if sol.status != 0:
-                    print('Integration failed!')
-                    break
-                if sol.t_events[0].size == 0:
+        print('Running simulation')
+
+        with alive_bar(x_0[5], manual=True) as bar:
+            while ground_hit == False:
+                y_0 = state_hist[-1]
+                t_next = time_hist[-1] + t_step
+                # u = self.controller(y_0)
+                # u = self.lyapunov_feedback(y_0, -0.05, 30.0)
+                u = self.geometric_control(y_0, -0.05, 30.0)
+                # print(f'Taking step at time {time_hist[-1]}')
+                # TODO if solver fails, abort and graph result anyway so we can see what happened
+                if y_0[5] < x_0[5]*0.1:
+                    sol = solve_ivp(
+                        self._dynamics, (time_hist[-1], t_next), y_0,
+                        t_eval=[t_next], events=self._event_ground_hit, args=(u))
+                    if sol.status != 0:
+                        print('Integration failed!')
+                        break
+                    if sol.t_events[0].size == 0:
+                        state_hist.append(sol.y[:, 0])
+                        time_hist.append(sol.t[0])
+                    else:
+                        state_hist.append(sol.y_events[0][0])
+                        time_hist.append(sol.t_events[0][0])
+                        ground_hit = True
+                else:
+                    sol = solve_ivp(
+                        self._dynamics, (time_hist[-1], t_next), y_0,
+                        t_eval=[t_next], method='RK23', args=u)
+                    if sol.status != 0:
+                        print('Integration failed!')
+                        break
                     state_hist.append(sol.y[:, 0])
                     time_hist.append(sol.t[0])
-                else:
-                    state_hist.append(sol.y_events[0][0])
-                    time_hist.append(sol.t_events[0][0])
-                    ground_hit = True
-            else:
-                sol = solve_ivp(
-                    self._dynamics, (time_hist[-1], t_next), y_0,
-                    t_eval=[t_next], method='RK23', args=u)
-                if sol.status != 0:
-                    print('Integration failed!')
-                    break
-                state_hist.append(sol.y[:, 0])
-                time_hist.append(sol.t[0])
-
+                percent = clip((x_0[5]-sol.y[5, 0])/x_0[5], 0.0, 1.0)
+                bar(percent)
         t = time_hist
         y = array(state_hist).T
         self._plot_sim_results(t, y)
         return t, y
-
-    def dispersion(self):
-        pass
-
-    def enableWind(self, windOn):
-        self.windOn = windOn
-
-    def controller(self, x: array, rf=20.0):
-        v = x[0]
-        psi = x[2]
-        px = x[3]
-        py = x[4]
-        pz = x[5]
-
-        p_bearing = 0.05
-        goal_area_arrival_height = 100
-
-        r = sqrt(px**2 + py**2)
-
-        if r > 10*rf:
-            # initial guidance
-            # 1) bearing
-            bearing = atan2(-py, -px)
-            error_psi = bearing - psi
-            sigma = clip(p_bearing*error_psi, -0.1, 0.1)
-            # 2) descent rate
-            dh = pz - goal_area_arrival_height
-            gamma = clip(atan2(-dh, r), -0.1, 0)
-            return (sigma, gamma)
-
-        else:
-            # terminal guidance with Lyapunov
-            return (0, 0)
-
-    def lyapunov_feedback(self, x: array, eps: float, rf: float, a=0.0, mu=0.5):
-
-        v = x[0]
-        gamma = x[1]
-        psi = x[2]
-        px = x[3]
-        py = x[4]
-
-        umax = v/rf
-
-        assert mu > 0, 'Mu must be a positive real number'
-        assert ((-umax <= a) & (a < umax)
-                ), 'a must satisfy the following: -umax <= a < umax'
-
-        p = np.array([[px, py]]).T
-        R = np.array([[cos(psi), sin(psi)], [-sin(psi), cos(psi)]])
-        ptild = R@p
-        xbar = ptild[0, 0]
-
-        if xbar <= -mu:
-            k = a
-        elif xbar >= 0:
-            k = umax
-        else:
-            n = (umax - a)
-            expnt = 1/(xbar+mu) + 1/xbar
-            d = 1 + exp(expnt)
-            k = n/d + a
-
-        # Convert dubins command to pseduo bank angle
-        # NOTE This doesn't seem to work well - not really sure why
-        # TODO Figure out why this doesn't work - should allow setting of the final radius by max turn rate
-        # r = 1/(k*cos(gam))
-        # sig = atan2(V**2 * cos(gam), g*r)
-        Cl = self.Cltrim + self.delCl * eps
-        L = 1/2 * self.rho * v**2 * self.S * Cl
-        sigma = arcsin(k*self.m*v*cos(gamma)/L)
-        return sigma
 
     def _event_ground_hit(self, t, state, comsigma, comepsilon):
         _, _, _, _, _, h, _, _ = state
@@ -312,29 +355,32 @@ class Simulation():
 
         return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]
 
-    def _plot_sim_results(self, t: array, y: array, arrow_every=200):
+    def _plot_sim_results(self, t: array, y: array):
 
         # TODO may want to try to add in speed via coloring or another graph; right now just visible in animation.
         fig, axs = plt.subplots(2, 2)
         camera = Camera(fig)
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
+        n = y.shape[1]
+        arrow_every = int(0.01*n)  # heading arrow on 1% of points
+
         # Ground track
         for i in range(0, len(t), int(len(t)/100)):
-            axs[0, 0].set_title("ground track + heading and speed")
+            axs[0, 0].set_title("ground track + heading")
             axs[0, 0].set_xlabel('x (m)')
             axs[0, 0].set_ylabel('y (m)')
             axs[0, 0].plot(y[3, :i], y[4, :i], color='b')
             axs[0, 0].set_aspect("equal", adjustable="datalim")
             axs[0, 0].set_box_aspect(3/4)
-            for (h, v, psi) in zip(y[3, :i:arrow_every], y[4, :i:arrow_every], y[2, :i:arrow_every]):
-                axs[0, 0].annotate('',
-                                   xytext=(h, v),
-                                   xy=(h + 0.01*cos(psi), v + 0.01*sin(psi)),
-                                   arrowprops=dict(
-                                       arrowstyle="fancy", color=None),
-                                   size=20
-                                   )
+            # for (h, v, psi) in zip(y[3, :i:arrow_every], y[4, :i:arrow_every], y[2, :i:arrow_every]):
+            #     axs[0, 0].annotate('',
+            #                        xytext=(h, v),
+            #                        xy=(h + 0.01*cos(psi), v + 0.01*sin(psi)),
+            #                        arrowprops=dict(
+            #                            arrowstyle="fancy", color=None),
+            #                        size=20
+            #                        )
 
             # Altitude
             axs[0, 1].set_title("altitude")
@@ -352,6 +398,7 @@ class Simulation():
             axs[1, 1].set_title("control")
             axs[1, 1].set_xlabel('t (s)')
             axs[1, 1].set_ylabel('temp')
+            axs[1, 1].legend(['sigma', 'epsilon'], loc='lower right')
             axs[1, 1].plot(t[:i], y[6, :i], color='b')
             axs[1, 1].plot(t[:i], y[7, :i], color='r')
 
@@ -362,13 +409,46 @@ class Simulation():
         # Need to edit 'matplotlibrc' file here in order to tell it where imagemagick 'convert' binary is
         animation.save('out.gif', writer='pillow', fps=30)
 
+    def phase_control(self, x, y):
+        r0 = 30  # [m]
+        u0 = 1/r0
+        r = sqrt(x**2 + (y-r0)**2)
+        rbar = sqrt(x**2 + y**2)
+
+        if r <= r0:
+            return 0
+        elif rbar > 1:
+            return rbar + x
+        else:
+            return u0
+
+    def phase_plot(self):
+        r0 = 30  # [m]
+        bound = 10
+        npts = 1000
+        xbar, ybar = np.meshgrid(
+            np.linspace(-bound, bound, npts), np.linspace(-bound, bound, npts))
+        u, v = np.zeros_like(xbar), np.zeros_like(xbar)
+        NI, NJ = xbar.shape
+        for i in range(NI):
+            for j in range(NJ):
+                x, y = xbar[i, j], ybar[i, j]
+                c = self.phase_control(x, y)
+                u[i, j] = c*y + 1 - r0*c
+                v[i, j] = -c*x
+        fig = plt.figure()
+        plt.streamplot(xbar, ybar, u, v)
+        plt.axis('square')
+        plt.show()
+
 
 if __name__ == "__main__":
     s = Simulation()
-    x0 = [7, 0, 0, -500, 100, 500, 0, 0]
+    x0 = [7, 0, pi/2, -500, 100, 500, 0, 0]
     tic = time.time()
     # t, y = s.run_to_time(0.01, 100, x0)
     t, y = s.run(0.01, x0)
+    # s.phase_plot()
     elapsed = time.time() - tic
     print(elapsed)
 
