@@ -153,7 +153,7 @@ class Simulation():
     def enableWind(self, windOn):
         self.windOn = windOn
 
-    def geometric_control(self, x: list, eps: float, r0: float):
+    def geometric_control(self, x: list, mu: float, r0: float):
 
         v = x[0]
         gamma = x[1]
@@ -161,60 +161,60 @@ class Simulation():
         px = x[3]
         py = x[4]
 
+        eps = 1.5*r0
+        a = 0
+        u0 = v/r0
+
+        assert eps > 0, 'Epsilon must be a positive real number'
+        # assert ((-u0 <= a) & (a < u0)
+        #         ), 'a must satisfy the following: -umax <= a < umax'
+
         p = np.array([[px, py]]).T
         R = np.array([[cos(psi), sin(psi)], [-sin(psi), cos(psi)]])
         ptild = R@p
         xbar = ptild[0, 0]
         ybar = ptild[1, 0] + r0
 
-        r = sqrt(px**2 + py**2)
         rbar = sqrt(xbar**2 + ybar**2)
 
-        u0 = v/r0
-
-        bearing = atan2(-ybar, -xbar)
-
-        if r <= r0:
-            u = 0
-        elif rbar > 1.5*r0:
-            u = 0.1*bearing
+        if rbar > 1.5*r0:
+            u = atan2(-ybar, -xbar)
         else:
-            u = u0
+            if xbar <= -eps:
+                u = a
+            elif xbar >= 0:
+                u = u0
+            else:
+                n = (u0 - a)
+                expnt = 1/(xbar+eps) + 1/xbar
+                d = 1 + exp(expnt)
+                u = n/d + a
+
+        # NOTE u > 0 is ccw motion
+
+        # if r > 1.5*r0:
+        #     u = bearing
+        # else:
+        #     u = u0 + 0.01*(r - r0)  # TODO needs to be less agressive
+
+        # elif r <= r0:
+        #     pass
+        # elif r > r0:
+        #     pass
+        # if r <= r0:
+        #     u = 0
+        # elif rbar > 1.5*r0:
+        #     u = bearing
+        # else:
+        #     u = u0
 
         # TODO this needs to be formalized for that we don't accidentally clip out u0
-        u = np.clip(u, -0.5, 0.5)
+        u = np.clip(u, -1.0, 1.0)
 
-        Cl = self.Cltrim + self.delCl * eps
+        Cl = self.Cltrim + self.delCl * mu
         L = 1/2 * self.rho * v**2 * self.S * Cl
         sigma = arcsin(u*self.m*v*cos(gamma)/L)
-        return sigma, eps
-
-    # def controller(self, x: array, rf=20.0):
-    #     v = x[0]
-    #     psi = x[2]
-    #     px = x[3]
-    #     py = x[4]
-    #     pz = x[5]
-
-    #     p_bearing = 0.05
-    #     goal_area_arrival_height = 100
-
-    #     r = sqrt(px**2 + py**2)
-
-    #     if r > 10*rf:
-    #         # initial guidance
-    #         # 1) bearing
-    #         bearing = atan2(-py, -px)
-    #         error_psi = bearing - psi
-    #         sigma = clip(p_bearing*error_psi, -0.1, 0.1)
-    #         # 2) descent rate
-    #         dh = pz - goal_area_arrival_height
-    #         gamma = clip(atan2(-dh, r), -0.1, 0)
-    #         return (sigma, gamma)
-
-    #     else:
-    #         # terminal guidance with Lyapunov
-    #         return (0, 0)
+        return sigma, mu
 
     # def lyapunov_feedback(self, x: array, eps: float, rf: float, a=0.0, mu=10.0):
 
@@ -262,7 +262,7 @@ class Simulation():
         while time_hist[-1] + t_step < t_f:
             y_0 = state_hist[-1]
             t_next = time_hist[-1] + t_step
-            u = self.controller(y_0)
+            u = self.geometric_control(y_0, -0.05, 30.0)
             print(f'Taking step at time {time_hist[-1]}')
             sol = solve_ivp(
                 self._dynamics, (time_hist[-1], t_next), y_0,
@@ -282,18 +282,12 @@ class Simulation():
         state_hist = [array(x_0)]
         time_hist = [0]
         ground_hit = False
-
         print('Running simulation')
-
-        with alive_bar(x_0[5], manual=True) as bar:
+        with alive_bar(100, manual=True) as bar:
             while ground_hit == False:
                 y_0 = state_hist[-1]
                 t_next = time_hist[-1] + t_step
-                # u = self.controller(y_0)
-                # u = self.lyapunov_feedback(y_0, -0.05, 30.0)
                 u = self.geometric_control(y_0, -0.05, 30.0)
-                # print(f'Taking step at time {time_hist[-1]}')
-                # TODO if solver fails, abort and graph result anyway so we can see what happened
                 if y_0[5] < x_0[5]*0.1:
                     sol = solve_ivp(
                         self._dynamics, (time_hist[-1], t_next), y_0,
@@ -361,16 +355,18 @@ class Simulation():
         fig, axs = plt.subplots(2, 2)
         camera = Camera(fig)
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
-
+        r0 = 30
         n = y.shape[1]
-        arrow_every = int(0.01*n)  # heading arrow on 1% of points
-
+        arrow_every = int(0.005*n)  # heading arrow on 0.5% of points
+        theta = linspace(0, 2*pi, 100)
         # Ground track
         for i in range(0, len(t), int(len(t)/100)):
             axs[0, 0].set_title("ground track + heading")
             axs[0, 0].set_xlabel('x (m)')
             axs[0, 0].set_ylabel('y (m)')
             axs[0, 0].plot(y[3, :i], y[4, :i], color='b')
+            axs[0, 0].plot(r0*cos(theta), r0*sin(theta),
+                           color='k', linestyle='dashed')
             axs[0, 0].set_aspect("equal", adjustable="datalim")
             axs[0, 0].set_box_aspect(3/4)
             # for (h, v, psi) in zip(y[3, :i:arrow_every], y[4, :i:arrow_every], y[2, :i:arrow_every]):
