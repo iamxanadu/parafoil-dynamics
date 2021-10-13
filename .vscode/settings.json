@@ -3,5 +3,8 @@
     "python.linting.banditEnabled": false,
     "python.linting.enabled": false,
     "python.linting.mypyEnabled": false,
-    "python.linting.flake8Enabled": true
+    "python.linting.flake8Enabled": true,
+    "cSpell.enableFiletypes": [
+        "!python"
+    ]
 }
