@@ -163,3 +163,5 @@ anim/
 
 *.gif
 *.png
+
+.vscode

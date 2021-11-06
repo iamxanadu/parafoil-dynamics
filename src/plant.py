@@ -89,8 +89,8 @@ class RadmacherPlant():
         if int(n/100) == 0:
             step = 1
         else:
-            step = int(n/100)
-        idx = range(0, n, step)
+            step = 1+int(n/100)
+        idx = list(range(0, n, step))
 
         fig, axs = plt.subplots(2, 2)
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
@@ -128,37 +128,54 @@ class RadmacherPlant():
             camera = Camera(fig)
 
             print('Generating GIF')
-            with alive_bar(len(ts)) as bar:
+            with alive_bar(len(idx)) as bar:
                 for i in idx:
                     self._plotToIndex(axs, i, t, y, r0, theta,
                                       heading, arrow_every)
                     camera.snap()
                     bar()
-
             animation = camera.animate(blit=True, interval=10*speed)
             # NOTE May need to edit 'matplotlibrc' file here in order to tell matplotlib where imagemagick 'convert' binary is
+            print('Please wait...')
             animation.save('out.gif', writer='pillow', fps=30)
 
         else:
             def animate(k):
                 self._plotToIndex(axs, k, t, y, r0, theta,
                                   heading, arrow_every)
+                return k
 
-            ani = FuncAnimation(fig, animate, frames=idx)
+            ani = FuncAnimation(fig, animate, frames=idx,
+                                interval=10, repeat=True)
             plt.show()
 
-    def _makeInitialState():
+    def _makeInitialState(self):
         return [0.1, 0.05, 0, 0, 0, 0, 0, 0]
 
     def setState(self, x: list):
         # TODO enforce common sense state limits here?
         self.x = x
 
+    def setControl(self, u: list):
+        # TODO enforce some kind of limits here
+        self.u = u
+
+    def setPosition(self, px: float, py: float, h: float):
+        self.x[3] = px
+        self.x[4] = py
+        self.x[5] = h
+
+    def setYaw(self, psi: float):
+        self.x[2] = psi
+
     def getState(self):
         return self.x
 
-    def step(self, dt):
+    def step(self, dt) -> list:
         sol = solve_ivp(self._dynamics, (0, dt), self.x,
                         t_eval=[dt], args=(self.u))
+        if sol.status != 0:
+            print('Integration failed!')
+            return None
         self.x = sol.y[:, 0]
         return self.x

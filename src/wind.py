@@ -1,3 +1,12 @@
+import matplotlib.pyplot as plt
+from numpy.fft import irfft, rfft, rfftfreq
+from numpy import linspace, arange, sqrt, interp
+from numpy.random import normal
+
+'''
+NOTE This is not yet integrated but will be used to generate turbulence for the model
+'''
+
 
 class VonKarmanWind():
     def __init__(self, u20=15, h0=2500, t0=0, v0=5, N=1e3, fs=0.1):
