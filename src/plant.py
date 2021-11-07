@@ -58,30 +58,20 @@ class RadmacherPlant():
 
         return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]
 
-    def _plotToIndex(self, axs, i: int, t: array, y: array, r0: float, theta: array, heading: bool, arrow_every: int):
-        axs[0, 0].plot(y[3, :i], y[4, :i], color='b')
-        axs[0, 0].plot(r0*cos(theta), r0*sin(theta),
-                       color='k', linestyle='dashed')
+    def _plotToIndex(self, lines, i: int, t: array, y: array, r0: float, theta: array):
 
-        if heading:
-            for (h, v, psi) in zip(y[3, :i:arrow_every], y[4, :i:arrow_every], y[2, :i:arrow_every]):
-                axs[0, 0].annotate('',
-                                   xytext=(h, v),
-                                   xy=(h + 0.01*cos(psi),
-                                       v + 0.01*sin(psi)),
-                                   arrowprops=dict(
-                                       arrowstyle="fancy", color=None),
-                                   size=20
-                                   )
+        lines[0].set_data(y[3, :i], y[4, :i])
 
-        axs[0, 1].plot(t[:i], y[5, :i], color='b')
+        lines[1].set_data(t[:i], y[5, :i])
 
-        axs[1, 0].plot(t[:i], degrees(y[1, :i]), color='b')
+        lines[2].set_data(t[:i], degrees(y[1, :i]))
 
-        axs[1, 1].plot(t[:i], y[6, :i], color='b')
-        axs[1, 1].plot(t[:i], y[7, :i], color='r')
+        lines[3].set_data(t[:i], degrees(y[6, :i]))
+        lines[4].set_data(t[:i], degrees(y[7, :i]))
 
-    def plotStateHistory(self, t: array, y: array, speed=1.0, r0=30, heading=False, produce_gif=False):
+        return lines
+
+    def plotStateHistory(self, t: array, y: array, speed=1.0, r0=30, produce_gif=False):
 
         n = len(t)
         arrow_every = int(0.005*n)  # heading arrow on 0.5% of points
@@ -95,15 +85,20 @@ class RadmacherPlant():
         fig, axs = plt.subplots(2, 2)
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
+        lines = (axs[0, 0].plot([], [], color='b')[0],
+                 axs[0, 1].plot([], [], color='b')[0],
+                 axs[1, 0].plot([], [], color='b')[0],
+                 axs[1, 1].plot([], [], color='b')[0],
+                 axs[1, 1].plot([], [], color='r')[0])
+
         # Ground track
-        if heading:
-            axs[0, 0].set_title("ground track + heading")
-        else:
-            axs[0, 0].set_title("ground track")
+        axs[0, 0].set_title("ground track")
         axs[0, 0].set_xlabel('x (m)')
         axs[0, 0].set_ylabel('y (m)')
         axs[0, 0].set_aspect("equal", adjustable="datalim")
         axs[0, 0].set_box_aspect(3/4)
+        axs[0, 0].plot(r0*cos(theta), r0*sin(theta),
+                       color='k', linestyle='dashed')
 
         # Altitude
         axs[0, 1].set_title("altitude")
@@ -121,33 +116,24 @@ class RadmacherPlant():
         axs[1, 1].set_ylabel('control magnitude (deg)')
         axs[1, 1].legend(['sigma', 'epsilon'], loc='lower right')
 
+        axs[0, 0].update_datalim(list(zip(y[3, :], y[4, :])))
+        axs[0, 1].update_datalim(list(zip(t, y[5, :])))
+        axs[1, 0].update_datalim(list(zip(t, degrees(y[1, :]))))
+        axs[1, 1].update_datalim(list(zip(t, degrees(y[7, :]))))
+        axs[1, 1].update_datalim(list(zip(t, degrees(y[6, :]))))
+
+        def animate(k):
+            self._plotToIndex(lines, k, t, y, r0, theta)
+            return lines
+
+        ani = FuncAnimation(fig, animate, frames=idx,
+                            interval=10, repeat=True, blit=True)
         if produce_gif:
-            from celluloid import Camera
-            from alive_progress import alive_bar
+            print('Generating GIF...')
+            ani.save('traj.gif', writer='pillow', fps=30)
+            print('Done!')
 
-            camera = Camera(fig)
-
-            print('Generating GIF')
-            with alive_bar(len(idx)) as bar:
-                for i in idx:
-                    self._plotToIndex(axs, i, t, y, r0, theta,
-                                      heading, arrow_every)
-                    camera.snap()
-                    bar()
-            animation = camera.animate(blit=True, interval=10*speed)
-            # NOTE May need to edit 'matplotlibrc' file here in order to tell matplotlib where imagemagick 'convert' binary is
-            print('Please wait...')
-            animation.save('out.gif', writer='pillow', fps=30)
-
-        else:
-            def animate(k):
-                self._plotToIndex(axs, k, t, y, r0, theta,
-                                  heading, arrow_every)
-                return k
-
-            ani = FuncAnimation(fig, animate, frames=idx,
-                                interval=10, repeat=True)
-            plt.show()
+        plt.show()
 
     def _makeInitialState(self):
         return [0.1, 0.05, 0, 0, 0, 0, 0, 0]

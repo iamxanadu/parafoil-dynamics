@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 class GeometricController():
-    def __init__(self, plant, r0=30, umax=1.0, ht=100, P_gamma=1.0):
+    def __init__(self, plant, r0=30, umax=0.5, ht=100, P_gamma=1.0):
         self.r0 = r0  # [m]
         self.umax = umax
         self.ht = ht
@@ -65,11 +65,12 @@ class GeometricController():
         return sigma
 
     def calcDescentRate(self, x: list):
+
+        # TODO Add a D term to deal with damping oscillations in the glide path while in terminal circle
         gamma = x[1]
         px = x[3]
         py = x[4]
         alt = x[5]
-        eps = x[7]
 
         r = sqrt(px**2 + py**2)
 
@@ -78,7 +79,7 @@ class GeometricController():
         else:
             glide_c = -radians(5)
 
-        return eps + self.P_gamma * (gamma - glide_c)
+        return clip(self.P_gamma * (gamma - glide_c), -self.umax, self.umax)
 
     def u(self, x: list):
 
@@ -86,72 +87,3 @@ class GeometricController():
         c_sigma = self.calcSigmaFromPsiDot(x, u)
         c_epsilon = self.calcDescentRate(x)
         return c_sigma, c_epsilon
-
-    # def _phase_control(self, xbar, ybar, a=0, v=1):
-
-    #     # Set reasonable terminal radius
-    #     terminal_radius_mult = 1.5
-
-    #     # Controller derived parameters
-    #     eps = terminal_radius_mult*self.r0
-    #     u0 = v/self.r0
-
-    #     # Make sure that the terminal guidance radius is positive
-    #     assert eps > 0, 'Epsilon must be a positive real number'
-
-    #     rbar = sqrt(xbar**2 + ybar**2)
-
-    #     # Calculate dubbins yaw output
-    #     if rbar > eps:
-    #         u = atan2(-ybar, -xbar)
-    #     else:
-    #         if xbar <= -eps:
-    #             u = a
-    #         elif xbar >= 0:
-    #             u = u0
-    #         else:
-    #             n = (u0 - a)
-    #             expnt = 1/(xbar+eps) + 1/xbar
-    #             d = 1 + exp(expnt)
-    #             u = n/d + a
-
-    #     return u
-
-    # def control_lyapunov_plot(self, v=1):
-    #     # Bounds to plot
-    #     bound = self.r0*5
-    #     npts = 1000
-
-    #     xbar, ybar = meshgrid(
-    #         linspace(-bound, bound, npts), linspace(-bound, bound, npts))
-    #     Vdot = zeros_like(xbar)
-    #     NI, NJ = xbar.shape
-    #     for i in range(NI):
-    #         for j in range(NJ):
-    #             x, y = xbar[i, j], ybar[i, j]
-    #             c = self._phase_control(x, y, v=v)
-    #             Vdot[i, j] = 2*x*(v - self.r0*c)
-    #     fig = plt.figure()
-    #     plt.pcolormesh(xbar, ybar, Vdot, cmap='RdBu')
-    #     plt.axis('square')
-    #     plt.show()
-
-    # def phase_plot(self, v=1):
-    #     # Bounds to plot
-    #     bound = self.r0*5
-    #     npts = 1000
-
-    #     xbar, ybar = meshgrid(
-    #         linspace(-bound, bound, npts), linspace(-bound, bound, npts))
-    #     u, v = zeros_like(xbar), zeros_like(xbar)
-    #     NI, NJ = xbar.shape
-    #     for i in range(NI):
-    #         for j in range(NJ):
-    #             x, y = xbar[i, j], ybar[i, j]
-    #             c = self._phase_control(x, y, v=v)
-    #             u[i, j] = c*y + v - self.r0*c
-    #             v[i, j] = -c*x
-    #     fig = plt.figure()
-    #     plt.streamplot(xbar, ybar, u, v)
-    #     plt.axis('square')
-    #     plt.show()

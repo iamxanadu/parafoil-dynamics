@@ -79,30 +79,6 @@ class Simulation():
                 state_hist.append(self.plant.step(t_step))
                 time_hist.append(t_next)
 
-                # if y_0[5] < x_0[5]*0.1:
-                #     sol = solve_ivp(
-                #         self._dynamics, (time_hist[-1], t_next), y_0,
-                #         t_eval=[t_next], events=self._event_ground_hit, args=(u))
-                #     if sol.status != 0:
-                #         print('Integration failed!')
-                #         break
-                #     if sol.t_events[0].size == 0:
-                #         state_hist.append(sol.y[:, 0])
-                #         time_hist.append(sol.t[0])
-                #     else:
-                #         state_hist.append(sol.y_events[0][0])
-                #         time_hist.append(sol.t_events[0][0])
-                #         ground_hit = True
-                # else:
-                #     sol = solve_ivp(
-                #         self._dynamics, (time_hist[-1], t_next), y_0,
-                #         t_eval=[t_next], method='RK23', args=u)
-                #     if sol.status != 0:
-                #         print('Integration failed!')
-                #         break
-                #     state_hist.append(sol.y[:, 0])
-                #     time_hist.append(sol.t[0])
-
                 y = state_hist[-1]
                 percent = clip((x_0[5]-y[5])/x_0[5], 0.0, 1.0)
                 bar(percent)
