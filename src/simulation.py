@@ -1,35 +1,36 @@
-from matplotlib import scale
-from numpy import arange, arcsin, sqrt, interp, linspace
-from math import pi
-from numpy.random import normal
-import matplotlib.pyplot as plt
-import numpy as np
-from numpy.fft import rfft, rfftfreq, irfft
-from numpy import cos, sin, array, max, min, clip, exp
-from math import atan2, asin
-from scipy.integrate import solve_ivp
-import time
+from numpy import array, clip
 
 from alive_progress import alive_bar
 
 from .control import GeometricController
 from .plant import RadmacherPlant
 
-'''
-Behavior of Von Karman wind model:
-- Should be able to transparently call the class to get wind at any time
-- Will need to update the model when height changes
--
-'''
-
 
 class Simulation():
 
     def __init__(self, plant: RadmacherPlant, controller: GeometricController):
+        """A simulation of the Rademacher parafoil plant with the presented geometric controller.
+
+        Args:
+            plant (RadmacherPlant): Rademacher parafoil plant instance.
+            controller (GeometricController): Geometric controller instance.
+        """
         self.plant = plant
         self.controller = controller
 
-    def run_to_time(self, t_step: float, t_f: float, x_0: list, plot_result=False, generate_gif=False):
+    def run_to_time(self, t_step: float, t_f: float, x_0: list, plot_result=False, generate_gif=False) -> tuple:
+        """Run the simulation to a given time.
+
+        Args:
+            t_step (float): Time step in seconds.
+            t_f (float): Final time in seconds.
+            x_0 (list): Initial state of the parafoil.
+            plot_result (bool, optional): Whether to plot and animate the result. Defaults to False.
+            generate_gif (bool, optional): Whether to produce and save a GIF of the animation. Defaults to False.
+
+        Returns:
+            tuple: The time and state history pair at each time step.
+        """
 
         self.plant.setState(x_0)
 
@@ -55,8 +56,18 @@ class Simulation():
             self.plant.plotStateHistory(t, y, produce_gif=generate_gif)
         return t, y
 
-    def run(self, t_step: float, x_0: list, plot_result=False, generate_gif=False):
+    def run(self, t_step: float, x_0: list, plot_result=False, generate_gif=False) -> tuple:
+        """Run the simulation until a ground hit.
 
+        Args:
+            t_step (float): Time step in seconds.
+            x_0 (list): Initial state of the parafoil.
+            plot_result (bool, optional): Whether to plot and animate the result. Defaults to False.
+            generate_gif (bool, optional): Whether to produce and save a GIF of the animation. Defaults to False.
+
+        Returns:
+            tuple: The time and state history pair at each time step.
+        """
         self.plant.setState(x_0)
 
         state_hist = [array(x_0)]

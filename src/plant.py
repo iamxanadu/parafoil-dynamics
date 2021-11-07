@@ -7,7 +7,9 @@ import yaml
 
 class RadmacherPlant():
     def __init__(self, config):
-        """A plant for the parafoil dynamics given by Rademacher.
+        """A plant for the parafoil dynamics given by Rademacher [1].
+
+        [1]B. Rademacher, “In-flight trajectory planning and guidance for autonomous parafoils,” 2009, doi: 10.2514/1.44862.
 
         Args:
             config (string): The path to the YAML config with the parameters for the model.
