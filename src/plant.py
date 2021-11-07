@@ -1,19 +1,17 @@
-'''
-TODO
-- Should handle the lowest level dynamics
-- Should handle integrating the dynamics
-- Should hold the current state
-- Should have a current control too, which can be set before integration
-'''
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from numpy import sin, cos, array, linspace, pi, degrees
+from numpy import ndarray, sin, cos, array, linspace, pi, degrees
 import yaml
 
 
 class RadmacherPlant():
     def __init__(self, config):
+        """A plant for the parafoil dynamics given by Rademacher.
+
+        Args:
+            config (string): The path to the YAML config with the parameters for the model.
+        """
         self.x = self._makeInitialState()
         self.u = (0, 0)
 
@@ -33,7 +31,18 @@ class RadmacherPlant():
             self.delCl = c['delCl']
             self.delCd = c['delCd']
 
-    def _dynamics(self, t, state, comsigma, comepsilon):
+    def _dynamics(self, t: float, state: ndarray, comsigma: float, comepsilon: float) -> list:
+        """Calculates the dynamics of the parafoil according to the model presented in Rademacher.
+
+        Args:
+            t (float): The current time (not used for calculation)
+            state (ndarray): The current state. This is the velocity V in m/s, the pitch angle gamma in radians, the headins psi in radians, the x, y, and z positions in m, the pseudo-bank angle sigma in radians, and the pseudo-pitch comand epsilon in radians in that order. 
+            comsigma (float): The commanded pseudo-bank angle in radians.
+            comepsilon (float): The commanded pseudo-pitch angle in radians.
+
+        Returns:
+            list: The derivatives of all the state variables in the same order they appear in in the 'state' argument.
+        """
         V, gamma, psi, _, _, _, sigma, epsilon = state
 
         # TODO Zero wind until I implement wind distribution
@@ -58,7 +67,19 @@ class RadmacherPlant():
 
         return [dotV, dotgamma, dotpsi, dotx, doty, doth, dotsigma, dotepsilon]
 
-    def _plotToIndex(self, lines, i: int, t: array, y: array, r0: float, theta: array):
+    def _plotToIndex(self, lines: tuple, i: int, t: array, y: array, r0: float) -> tuple:
+        """Updates the graph actors up to a given data index.
+
+        Args:
+            lines (tuple): List of animation actors to update.
+            i (int): The index to update to.
+            t (array): The array of time points.
+            y (array): The arraay of state values.
+            r0 (float): The radius of the terminal manifold for the parafoil.
+
+        Returns:
+            tuple: The list of actors to be updated.
+        """
 
         lines[0].set_data(y[3, :i], y[4, :i])
 
@@ -72,6 +93,15 @@ class RadmacherPlant():
         return lines
 
     def plotStateHistory(self, t: array, y: array, speed=1.0, r0=30, produce_gif=False):
+        """Plots the state history for the parafoil.
+
+        Args:
+            t (array): Array of time points.
+            y (array): Array of parafoil states.
+            speed (float, optional): Speed of the animation. Higher is faster. Defaults to 1.0.
+            r0 (int, optional): Radius of the terminal manifold for the parafoil controller in meters. Defaults to 30.
+            produce_gif (bool, optional): Whether to produce a gif output. Saves to 'traj.gif'. Defaults to False.
+        """
 
         n = len(t)
         arrow_every = int(0.005*n)  # heading arrow on 0.5% of points
@@ -123,7 +153,7 @@ class RadmacherPlant():
         axs[1, 1].update_datalim(list(zip(t, degrees(y[6, :]))))
 
         def animate(k):
-            self._plotToIndex(lines, k, t, y, r0, theta)
+            self._plotToIndex(lines, k, t, y, r0)
             return lines
 
         ani = FuncAnimation(fig, animate, frames=idx,
@@ -139,25 +169,61 @@ class RadmacherPlant():
         return [0.1, 0.05, 0, 0, 0, 0, 0, 0]
 
     def setState(self, x: list):
+        """Set the state of the parafoil.
+
+        Args:
+            x (list): The state to be set. This is the velocity V in m/s, the pitch angle gamma in radians, the headins psi in radians, the x, y, and z positions in m, the pseudo-bank angle sigma in radians, and the pseudo-pitch comand epsilon in radians in that order.
+        """
         # TODO enforce common sense state limits here?
         self.x = x
 
     def setControl(self, u: list):
+        """Set the control of the parafoil
+
+        Args:
+            u (list): The control to be set. This is the commanded pseudo-bank angle and commanded pseudo-pitch angle in that order
+        """
         # TODO enforce some kind of limits here
         self.u = u
 
     def setPosition(self, px: float, py: float, h: float):
+        """Set the position of the parafoil.
+
+        Args:
+            px (float): x position in meters
+            py (float): y position in meters
+            h (float): altitude in meters
+        """
         self.x[3] = px
         self.x[4] = py
         self.x[5] = h
 
     def setYaw(self, psi: float):
+        """Set the yaw of the parafoil.
+
+        Args:
+            psi (float): Yaw angle in radians
+        """
         self.x[2] = psi
 
-    def getState(self):
+    def getState(self) -> list:
+        """Get the current parafoil state.
+
+        Returns:
+            list: The current parafoil state. This is the velocity V in m/s, the pitch angle gamma in radians, the headins psi in radians, the x, y, and z positions in m, the pseudo-bank angle sigma in radians, and the pseudo-pitch comand epsilon in radians in that order.
+        """
         return self.x
 
-    def step(self, dt) -> list:
+    def step(self, dt: float) -> list:
+        """Advance the state of the parafoil by a given time step.
+
+        Args:
+            dt (float): The time interval by which to advance the state
+
+        Returns:
+            list: The state of the parafoil after the step. This is the velocity V in m/s, the pitch angle gamma in radians, the headins psi in radians, the x, y, and z positions in m, the pseudo-bank angle sigma in radians, and the pseudo-pitch comand epsilon in radians in that order.
+        """
+
         sol = solve_ivp(self._dynamics, (0, dt), self.x,
                         t_eval=[dt], args=(self.u))
         if sol.status != 0:
