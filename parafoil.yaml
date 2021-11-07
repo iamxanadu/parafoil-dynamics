@@ -11,6 +11,6 @@ taue: 0.8 # pitching first order lag time constant
 #  Lift and drag coefficients when trimmed
 Cltrim: 0.5 # [0.4 1.0]
 Cdtrim: 0.09
-#  Lift and drag coefficients control effectiveness
+#  Lift and drag coefficients control effectiveness (per radian)
 delCl: 0.467
 delCd: 0.19

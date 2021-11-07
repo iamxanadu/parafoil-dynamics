@@ -1,11 +1,20 @@
 from numpy import cos, radians, sin, sqrt, exp, clip, arcsin
-from numpy import meshgrid, linspace, zeros_like
 from math import atan2
-import matplotlib.pyplot as plt
+
+from .plant import RadmacherPlant
 
 
 class GeometricController():
-    def __init__(self, plant, r0=30, umax=0.5, ht=100, P_gamma=1.0):
+    def __init__(self, plant: RadmacherPlant, r0=30, umax=0.5, ht=100, P_gamma=1.0):
+        """The geometric controller presented in this work. Utilizes a Lyapunov-based controller for steering adapted from [1].
+
+        Args:
+            plant (RadmacherPlant): Rademacher parafoil plant instance.
+            r0 (int, optional): Radius of the terminal manifold for the controller in meters. Defaults to 30.
+            umax (float, optional): The maximum control inputs allowed in radians. Defaults to 0.5.
+            ht (int, optional): The altitude at which to transition to terminal descent rate. Defaults to 100.
+            P_gamma (float, optional): Gain for the proportional control of the glide path angle. Defaults to 1.0.
+        """
         self.r0 = r0  # [m]
         self.umax = umax
         self.ht = ht
@@ -13,7 +22,18 @@ class GeometricController():
 
         self.plant = plant
 
-    def geometricYawControl(self, x: list, a=0, terminal_radius_mult=1.5):
+    def geometricYawControl(self, x: list, a=0, terminal_radius_mult=1.5) -> float:
+        """Generates the Lyapunov geometric yaw control based on state feedback.
+
+        Args:
+            x (list): The current state of the parafoil.
+            a (int, optional): Parameter of the controller. See [1]. Defaults to 0.
+            terminal_radius_mult (float, optional): Multiple of the terminal radius at which to switch to terminal Lyapunov guidance for the heading. Defaults to 1.5.
+
+        Returns:
+            float: Commanded turning rate in radians per second.
+        """
+
         # NOTE u > 0 is ccw motion
 
         # Unpack state variables
@@ -50,7 +70,16 @@ class GeometricController():
 
         return u
 
-    def calcSigmaFromPsiDot(self, x: list, u: float, umax=1.0):
+    def calcSigmaFromPsiDot(self, x: list, u: float) -> float:
+        """Calculates a pseudo-bank angle control from the turning rate.
+
+        Args:
+            x (list): The current parafoil state.
+            u (float): The commanded turning rate.
+
+        Returns:
+            float: The commanded pseudo-bank angle.
+        """
 
         v = x[0]
         gamma = x[1]
@@ -64,7 +93,15 @@ class GeometricController():
 
         return sigma
 
-    def calcDescentRate(self, x: list):
+    def calcDescentRate(self, x: list) -> float:
+        """Calculate descent rate for the parafoil.
+
+        Args:
+            x (list): The current parafoil state.
+
+        Returns:
+            float: The commanded pseudo-pitch angle.
+        """
 
         # TODO Add a D term to deal with damping oscillations in the glide path while in terminal circle
         gamma = x[1]
@@ -81,7 +118,15 @@ class GeometricController():
 
         return clip(self.P_gamma * (gamma - glide_c), -self.umax, self.umax)
 
-    def u(self, x: list):
+    def u(self, x: list) -> tuple:
+        """Return the calculated controls for a given state.
+
+        Args:
+            x (list): The current state of the parafoil.
+
+        Returns:
+            tuple: The commanded pseudo-bank and pitch angles in that order.
+        """
 
         u = self.geometricYawControl(x)
         c_sigma = self.calcSigmaFromPsiDot(x, u)
